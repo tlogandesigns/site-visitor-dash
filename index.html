@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Homes Lead Tracker</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --cabernet: #670038;
+            --cabernet-light: #8a0049;
+            --cabernet-dark: #4a0028;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .navbar {
+            background-color: var(--cabernet) !important;
+        }
+        
+        .btn-primary {
+            background-color: var(--cabernet);
+            border-color: var(--cabernet);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--cabernet-light);
+            border-color: var(--cabernet-light);
+        }
+        
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            border-left: 4px solid var(--cabernet);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(103, 0, 56, 0.05);
+        }
+        
+        .badge-synced {
+            background-color: #28a745;
+        }
+        
+        .badge-pending {
+            background-color: #ffc107;
+        }
+        
+        .note-timestamp {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        
+        .modal-header {
+            background-color: var(--cabernet);
+            color: white;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="d-none">
+        <div class="container">
+            <div class="row justify-content-center align-items-center min-vh-100">
+                <div class="col-md-4">
+                    <div class="card shadow">
+                        <div class="card-body p-5">
+                            <div class="text-center mb-4">
+                                <i class="bi bi-house-door" style="font-size: 3rem; color: var(--cabernet);"></i>
+                                <h3 class="mt-3">New Homes Lead Tracker</h3>
+                                <p class="text-muted">Please sign in to continue</p>
+                            </div>
+                            <form id="loginForm" onsubmit="handleLogin(event)">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" required autocomplete="username">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="password" required autocomplete="current-password">
+                                </div>
+                                <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application (hidden until logged in) -->
+    <div id="mainApp" class="d-none">
+        <!-- Navigation -->
+        <nav class="navbar navbar-dark">
+            <div class="container-fluid">
+                <span class="navbar-brand mb-0 h1">
+                    <i class="bi bi-house-door"></i> New Homes Lead Tracker
+                </span>
+                <div class="d-flex align-items-center">
+                    <span class="text-white me-3">
+                        <i class="bi bi-person-circle"></i>
+                        <span id="currentUsername"></span>
+                        <span id="userRole" class="badge bg-light text-dark ms-1"></span>
+                    </span>
+                    <select id="siteFilter" class="form-select form-select-sm me-2" style="width: auto;">
+                        <option value="">All Sites</option>
+                    </select>
+                    <button class="btn btn-light btn-sm me-2" onclick="exportCSV()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Total Visitors</h6>
+                        <h2 class="mb-0" id="totalVisitors">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Today's Visitors</h6>
+                        <h2 class="mb-0" id="todayVisitors">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">CINC Synced</h6>
+                        <h2 class="mb-0" id="cincSynced">0</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation (Admin/Super Admin Only) -->
+        <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="visitors-tab" data-bs-toggle="tab" data-bs-target="#visitorsTab" type="button" role="tab">
+                    <i class="bi bi-people"></i> Visitors
+                </button>
+            </li>
+            <li class="nav-item" role="presentation" id="usersTabNav" style="display: none;">
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#usersTab" type="button" role="tab">
+                    <i class="bi bi-person-gear"></i> User Management
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="mainTabContent">
+            <!-- Visitors Tab -->
+            <div class="tab-pane fade show active" id="visitorsTab" role="tabpanel">
+                <!-- Action Buttons -->
+                <div class="row mb-3">
+                    <div class="col">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVisitorModal">
+                            <i class="bi bi-plus-circle"></i> Add New Visitor
+                        </button>
+                        <button class="btn btn-outline-secondary ms-2" onclick="refreshData()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+        <!-- Visitors Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Visitors</h5>
+            </div>
+            <div class="card-body">
+                <div class="loading" id="tableLoading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Timeline</th>
+                                <th>Price Range</th>
+                                <th>Site</th>
+                                <th>Agent</th>
+                                <th>CINC</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="visitorsTable">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+            </div>
+            <!-- End Visitors Tab -->
+
+            <!-- User Management Tab (Admin/Super Admin Only) -->
+            <div class="tab-pane fade" id="usersTab" role="tabpanel">
+                <!-- Action Buttons -->
+                <div class="row mb-3">
+                    <div class="col">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            <i class="bi bi-person-plus"></i> Add New User
+                        </button>
+                        <button class="btn btn-outline-secondary ms-2" onclick="refreshUsers()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Users Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">System Users</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="loading" id="usersLoading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Agent</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Last Login</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTable">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End User Management Tab -->
+        </div>
+        <!-- End Tab Content -->
+    </div>
+
+    <!-- Add Visitor Modal -->
+    <div class="modal fade" id="addVisitorModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Visitor</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="visitorForm">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <h6 class="text-muted">Buyer Information</h6>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="buyerName" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone <span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control" id="buyerPhone" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="buyerEmail">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Purchase Timeline</label>
+                                <select class="form-select" id="purchaseTimeline">
+                                    <option value="">Select...</option>
+                                    <option value="0-3 months">0-3 months</option>
+                                    <option value="3-6 months">3-6 months</option>
+                                    <option value="6-12 months">6-12 months</option>
+                                    <option value="12+ months">12+ months</option>
+                                    <option value="Just browsing">Just browsing</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Price Range</label>
+                                <select class="form-select" id="priceRange">
+                                    <option value="">Select...</option>
+                                    <option value="Under $200k">Under $200k</option>
+                                    <option value="$200k-$300k">$200k-$300k</option>
+                                    <option value="$300k-$400k">$300k-$400k</option>
+                                    <option value="$400k-$500k">$400k-$500k</option>
+                                    <option value="$500k+">$500k+</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Location Looking</label>
+                                <input type="text" class="form-control" id="locationLooking">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Current Location</label>
+                                <input type="text" class="form-control" id="locationCurrent">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Occupation</label>
+                                <input type="text" class="form-control" id="occupation">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Represented?</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" id="represented">
+                                    <label class="form-check-label" for="represented">Yes</label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3" id="agentNameDiv" style="display: none;">
+                                <label class="form-label">Agent Name</label>
+                                <input type="text" class="form-control" id="agentName">
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <hr>
+                                <h6 class="text-muted">Agent Information</h6>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Site <span class="text-danger">*</span></label>
+                                <select class="form-select" id="site" required>
+                                    <option value="">Select site...</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Capturing Agent <span class="text-danger">*</span></label>
+                                <select class="form-select" id="capturingAgent" required>
+                                    <option value="">Select agent...</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Initial Notes</label>
+                                <textarea class="form-control" id="notes" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitVisitor()">
+                        <i class="bi bi-check-circle"></i> Save Visitor
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visitor Detail Modal -->
+    <div class="modal fade" id="visitorDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Visitor Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="visitorDetailBody">
+                    <!-- Populated by JavaScript -->
+                </div>
+                <div class="modal-footer">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="newNote" placeholder="Add a note...">
+                        <button class="btn btn-primary" onclick="addNote()">
+                            <i class="bi bi-plus"></i> Add Note
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New User</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="addUserForm" onsubmit="handleAddUser(event)">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="newUsername" class="form-label">Username *</label>
+                            <input type="text" class="form-control" id="newUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newUserEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="newUserEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newUserPassword" class="form-label">Password *</label>
+                            <input type="password" class="form-control" id="newUserPassword" required minlength="6">
+                            <div class="form-text">Minimum 6 characters</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newUserRole" class="form-label">Role *</label>
+                            <select class="form-select" id="newUserRole" required onchange="toggleAgentField()">
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                                <option value="super_admin" id="superAdminOption" style="display: none;">Super Admin</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="newUserAgentField">
+                            <label for="newUserAgent" class="form-label">Linked Agent</label>
+                            <select class="form-select" id="newUserAgent">
+                                <option value="">None (Admin only)</option>
+                                <!-- Populated by JavaScript -->
+                            </select>
+                            <div class="form-text">Required for 'user' role</div>
+                        </div>
+                        <div id="addUserError" class="alert alert-danger d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit User</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editUserForm" onsubmit="handleEditUser(event)">
+                    <input type="hidden" id="editUserId">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="editUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="editUsername" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editUserEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="editUserEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editUserPassword" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="editUserPassword" minlength="6">
+                            <div class="form-text">Leave blank to keep current password</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editUserRole" class="form-label">Role *</label>
+                            <select class="form-select" id="editUserRole" required onchange="toggleEditAgentField()">
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                                <option value="super_admin" id="editSuperAdminOption" style="display: none;">Super Admin</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="editUserAgentField">
+                            <label for="editUserAgent" class="form-label">Linked Agent</label>
+                            <select class="form-select" id="editUserAgent">
+                                <option value="">None (Admin only)</option>
+                                <!-- Populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="editUserActive">
+                                <label class="form-check-label" for="editUserActive">Active</label>
+                            </div>
+                        </div>
+                        <div id="editUserError" class="alert alert-danger d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    </div> <!-- Close mainApp -->
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin.includes('localhost')
+            ? 'http://localhost:8000'
+            : '/api';  // Adjust for your deployment
+
+        let currentVisitorId = null;
+        let agents = [];
+        let sites = [];
+        let authToken = null;
+        let currentUser = null;
+
+        // Authentication utilities
+        function getAuthHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            };
+        }
+
+        function saveAuthData(token, user) {
+            authToken = token;
+            currentUser = user;
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('currentUser', JSON.stringify(user));
+        }
+
+        function loadAuthData() {
+            authToken = localStorage.getItem('authToken');
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                currentUser = JSON.parse(userData);
+            }
+            return authToken && currentUser;
+        }
+
+        function clearAuthData() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+        }
+
+        // Handle login
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+
+            errorDiv.classList.add('d-none');
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', username);
+                formData.append('password', password);
+
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Login failed');
+                }
+
+                const data = await response.json();
+                saveAuthData(data.access_token, {
+                    username: data.username,
+                    role: data.role,
+                    agent_id: data.agent_id
+                });
+
+                showMainApp();
+
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = error.message || 'Invalid username or password';
+                errorDiv.classList.remove('d-none');
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            clearAuthData();
+            showLoginScreen();
+        }
+
+        // Show login screen
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('d-none');
+            document.getElementById('mainApp').classList.add('d-none');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        // Show main app
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('d-none');
+            document.getElementById('mainApp').classList.remove('d-none');
+            document.getElementById('currentUsername').textContent = currentUser.username;
+            document.getElementById('userRole').textContent = currentUser.role.toUpperCase();
+
+            // Show user management tab for admins and super_admins
+            if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
+                document.getElementById('usersTabNav').style.display = 'block';
+
+                // Show super admin option for super_admins only
+                if (currentUser.role === 'super_admin') {
+                    document.getElementById('superAdminOption').style.display = 'block';
+                    document.getElementById('editSuperAdminOption').style.display = 'block';
+                }
+            }
+
+            // Load application data
+            loadSites();
+            loadAgents().then(() => {
+                // Populate agent dropdowns after agents are loaded
+                populateUserAgentDropdowns();
+            });
+            loadStats();
+            loadVisitors();
+
+            // Add tab change listener to load users when switching to user management tab
+            document.getElementById('users-tab').addEventListener('click', function() {
+                loadUsers();
+            });
+        }
+
+        // Check authentication on page load
+        function checkAuth() {
+            if (loadAuthData()) {
+                showMainApp();
+            } else {
+                showLoginScreen();
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+
+            // Represented checkbox toggle
+            document.getElementById('represented').addEventListener('change', function() {
+                document.getElementById('agentNameDiv').style.display =
+                    this.checked ? 'block' : 'none';
+            });
+
+            // Site filter change
+            document.getElementById('siteFilter').addEventListener('change', function() {
+                loadVisitors();
+                loadStats();
+            });
+
+            // Site selection change in form
+            document.getElementById('site').addEventListener('change', function() {
+                filterAgentsBySite(this.value);
+            });
+        });
+
+        // Load sites
+        async function loadSites() {
+            try {
+                const response = await fetch(`${API_BASE}/sites`, {
+                    headers: getAuthHeaders()
+                });
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+                const data = await response.json();
+                sites = data.sites;
+                
+                const siteFilter = document.getElementById('siteFilter');
+                const siteSelect = document.getElementById('site');
+                
+                sites.forEach(site => {
+                    const option1 = document.createElement('option');
+                    option1.value = site;
+                    option1.textContent = site;
+                    siteFilter.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = site;
+                    option2.textContent = site;
+                    siteSelect.appendChild(option2);
+                });
+            } catch (error) {
+                console.error('Error loading sites:', error);
+            }
+        }
+
+        // Load agents
+        async function loadAgents() {
+            try {
+                const response = await fetch(`${API_BASE}/agents`, {
+                    headers: getAuthHeaders()
+                });
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+                const data = await response.json();
+                agents = data.agents;
+            } catch (error) {
+                console.error('Error loading agents:', error);
+            }
+        }
+
+        // Filter agents by site
+        function filterAgentsBySite(site) {
+            const agentSelect = document.getElementById('capturingAgent');
+            agentSelect.innerHTML = '<option value="">Select agent...</option>';
+            
+            const filteredAgents = site 
+                ? agents.filter(a => a.site === site)
+                : agents;
+            
+            filteredAgents.forEach(agent => {
+                const option = document.createElement('option');
+                option.value = agent.id;
+                option.textContent = agent.name;
+                agentSelect.appendChild(option);
+            });
+        }
+
+        // Load statistics
+        async function loadStats() {
+            const site = document.getElementById('siteFilter').value;
+            const url = site ? `${API_BASE}/stats?site=${encodeURIComponent(site)}` : `${API_BASE}/stats`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+                const data = await response.json();
+                
+                document.getElementById('totalVisitors').textContent = data.total_visitors;
+                document.getElementById('todayVisitors').textContent = data.today_visitors;
+                document.getElementById('cincSynced').textContent = data.cinc_synced;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load visitors
+        async function loadVisitors() {
+            const tableBody = document.getElementById('visitorsTable');
+            const loading = document.getElementById('tableLoading');
+            
+            loading.style.display = 'block';
+            tableBody.innerHTML = '';
+            
+            const site = document.getElementById('siteFilter').value;
+            const url = site ? `${API_BASE}/visitors?site=${encodeURIComponent(site)}` : `${API_BASE}/visitors`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+                const data = await response.json();
+                
+                loading.style.display = 'none';
+                
+                if (data.visitors.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No visitors yet</td></tr>';
+                    return;
+                }
+                
+                data.visitors.forEach(visitor => {
+                    const row = document.createElement('tr');
+                    row.style.cursor = 'pointer';
+                    row.onclick = () => showVisitorDetail(visitor.id);
+                    
+                    const date = new Date(visitor.created_at);
+                    const cincBadge = visitor.cinc_synced 
+                        ? '<span class="badge badge-synced">Synced</span>'
+                        : '<span class="badge badge-pending">Pending</span>';
+                    
+                    row.innerHTML = `
+                        <td>${date.toLocaleDateString()}</td>
+                        <td><strong>${visitor.buyer_name}</strong></td>
+                        <td>${visitor.buyer_phone}</td>
+                        <td>${visitor.buyer_email || '-'}</td>
+                        <td>${visitor.purchase_timeline || '-'}</td>
+                        <td>${visitor.price_range || '-'}</td>
+                        <td>${visitor.site}</td>
+                        <td>${visitor.agent_name}</td>
+                        <td>${cincBadge}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showVisitorDetail(${visitor.id})">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading visitors:', error);
+                loading.style.display = 'none';
+                tableBody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
+            }
+        }
+
+        // Submit new visitor
+        async function submitVisitor() {
+            const form = document.getElementById('visitorForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const payload = {
+                buyer_name: document.getElementById('buyerName').value,
+                buyer_phone: document.getElementById('buyerPhone').value,
+                buyer_email: document.getElementById('buyerEmail').value || null,
+                purchase_timeline: document.getElementById('purchaseTimeline').value || null,
+                price_range: document.getElementById('priceRange').value || null,
+                location_looking: document.getElementById('locationLooking').value || null,
+                location_current: document.getElementById('locationCurrent').value || null,
+                occupation: document.getElementById('occupation').value || null,
+                represented: document.getElementById('represented').checked,
+                agent_name: document.getElementById('agentName').value || null,
+                capturing_agent_id: parseInt(document.getElementById('capturingAgent').value),
+                site: document.getElementById('site').value,
+                notes: document.getElementById('notes').value || null
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/visitors`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) throw new Error('Failed to create visitor');
+                
+                const data = await response.json();
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addVisitorModal'));
+                modal.hide();
+                
+                // Reset form
+                form.reset();
+                
+                // Refresh data
+                loadVisitors();
+                loadStats();
+                
+                // Show success message
+                alert(data.cinc_synced 
+                    ? 'Visitor added and synced to CINC!' 
+                    : 'Visitor added (CINC sync pending)');
+                
+            } catch (error) {
+                console.error('Error creating visitor:', error);
+                alert('Error adding visitor. Please try again.');
+            }
+        }
+
+        // Show visitor detail
+        async function showVisitorDetail(visitorId) {
+            currentVisitorId = visitorId;
+
+            try {
+                const response = await fetch(`${API_BASE}/visitors/${visitorId}`, {
+                    headers: getAuthHeaders()
+                });
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+                const data = await response.json();
+                
+                const visitor = data.visitor;
+                const notes = data.notes;
+                
+                let html = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Buyer Information</h6>
+                            <p><strong>Name:</strong> ${visitor.buyer_name}</p>
+                            <p><strong>Phone:</strong> ${visitor.buyer_phone}</p>
+                            <p><strong>Email:</strong> ${visitor.buyer_email || '-'}</p>
+                            <p><strong>Timeline:</strong> ${visitor.purchase_timeline || '-'}</p>
+                            <p><strong>Price Range:</strong> ${visitor.price_range || '-'}</p>
+                            <p><strong>Looking in:</strong> ${visitor.location_looking || '-'}</p>
+                            <p><strong>Current Location:</strong> ${visitor.location_current || '-'}</p>
+                            <p><strong>Occupation:</strong> ${visitor.occupation || '-'}</p>
+                            <p><strong>Represented:</strong> ${visitor.represented ? 'Yes - ' + (visitor.agent_name || 'Unknown') : 'No'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Visit Information</h6>
+                            <p><strong>Site:</strong> ${visitor.site}</p>
+                            <p><strong>Capturing Agent:</strong> ${visitor.agent_name}</p>
+                            <p><strong>Visit Date:</strong> ${new Date(visitor.created_at).toLocaleString()}</p>
+                            <p><strong>CINC Status:</strong> ${visitor.cinc_synced ? '<span class="badge badge-synced">Synced</span>' : '<span class="badge badge-pending">Pending</span>'}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6 class="text-muted mb-3">Notes History (${notes.length})</h6>
+                    <div class="list-group">
+                `;
+                
+                if (notes.length > 0) {
+                    notes.forEach(note => {
+                        html += `
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">${note.agent_name}</h6>
+                                    <small class="note-timestamp">${new Date(note.created_at).toLocaleString()}</small>
+                                </div>
+                                <p class="mb-0">${note.note}</p>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<p class="text-muted">No notes yet</p>';
+                }
+                
+                html += '</div>';
+                
+                document.getElementById('visitorDetailBody').innerHTML = html;
+                
+                const modal = new bootstrap.Modal(document.getElementById('visitorDetailModal'));
+                modal.show();
+                
+            } catch (error) {
+                console.error('Error loading visitor detail:', error);
+                alert('Error loading visitor details');
+            }
+        }
+
+        // Add note
+        async function addNote() {
+            const noteText = document.getElementById('newNote').value.trim();
+            if (!noteText) {
+                alert('Please enter a note');
+                return;
+            }
+
+            // Use logged-in user's agent_id
+            const agentId = currentUser?.agent_id;
+            if (!agentId) {
+                alert('No agent linked to your account');
+                return;
+            }
+
+            const payload = {
+                visitor_id: currentVisitorId,
+                agent_id: agentId,
+                note: noteText
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/visitors/${currentVisitorId}/notes`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+                
+                if (!response.ok) throw new Error('Failed to add note');
+                
+                document.getElementById('newNote').value = '';
+                showVisitorDetail(currentVisitorId);
+                
+            } catch (error) {
+                console.error('Error adding note:', error);
+                alert('Error adding note');
+            }
+        }
+
+        // Export CSV
+        function exportCSV() {
+            const site = document.getElementById('siteFilter').value;
+            let url = site
+                ? `${API_BASE}/visitors/export/csv?site=${encodeURIComponent(site)}`
+                : `${API_BASE}/visitors/export/csv`;
+
+            // Add auth token to URL for download
+            const link = document.createElement('a');
+            fetch(url, {
+                headers: getAuthHeaders()
+            })
+            .then(response => {
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                if (blob) {
+                    const url = window.URL.createObjectURL(blob);
+                    link.href = url;
+                    link.download = 'leads_export.csv';
+                    link.click();
+                    window.URL.revokeObjectURL(url);
+                }
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                alert('Error exporting data');
+            });
+        }
+
+        // Refresh data
+        function refreshData() {
+            loadVisitors();
+            loadStats();
+        }
+
+        // ==== USER MANAGEMENT FUNCTIONS ====
+
+        // Load users
+        async function loadUsers() {
+            document.getElementById('usersLoading').style.display = 'block';
+
+            try {
+                const response = await fetch(`${API_BASE}/users`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                const data = await response.json();
+                const users = data.users;
+
+                const tbody = document.getElementById('usersTable');
+                tbody.innerHTML = '';
+
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${user.id}</td>
+                        <td><strong>${user.username}</strong></td>
+                        <td>${user.email || '-'}</td>
+                        <td><span class="badge bg-${getRoleBadgeColor(user.role)}">${formatRole(user.role)}</span></td>
+                        <td>${user.agent_name || '-'}</td>
+                        <td><span class="badge bg-${user.active ? 'success' : 'secondary'}">${user.active ? 'Active' : 'Inactive'}</span></td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                        <td>${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="showEditUser(${user.id})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id}, '${user.username}')"
+                                ${user.id === currentUser.id ? 'disabled title="Cannot delete yourself"' : ''}>
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Error loading users:', error);
+                alert('Error loading users');
+            } finally {
+                document.getElementById('usersLoading').style.display = 'none';
+            }
+        }
+
+        function getRoleBadgeColor(role) {
+            switch (role) {
+                case 'super_admin': return 'danger';
+                case 'admin': return 'primary';
+                case 'user': return 'info';
+                default: return 'secondary';
+            }
+        }
+
+        function formatRole(role) {
+            return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // Refresh users
+        function refreshUsers() {
+            loadUsers();
+        }
+
+        // Toggle agent field based on role selection
+        function toggleAgentField() {
+            const role = document.getElementById('newUserRole').value;
+            const agentField = document.getElementById('newUserAgentField');
+            const agentSelect = document.getElementById('newUserAgent');
+
+            if (role === 'user') {
+                agentField.style.display = 'block';
+                agentSelect.required = true;
+            } else {
+                agentField.style.display = 'none';
+                agentSelect.required = false;
+                agentSelect.value = '';
+            }
+        }
+
+        function toggleEditAgentField() {
+            const role = document.getElementById('editUserRole').value;
+            const agentField = document.getElementById('editUserAgentField');
+            const agentSelect = document.getElementById('editUserAgent');
+
+            if (role === 'user') {
+                agentField.style.display = 'block';
+                agentSelect.required = true;
+            } else {
+                agentField.style.display = 'none';
+                agentSelect.required = false;
+                agentSelect.value = '';
+            }
+        }
+
+        // Add user
+        async function handleAddUser(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const username = document.getElementById('newUsername').value.trim();
+            const email = document.getElementById('newUserEmail').value.trim() || null;
+            const password = document.getElementById('newUserPassword').value;
+            const role = document.getElementById('newUserRole').value;
+            const agentId = document.getElementById('newUserAgent').value || null;
+
+            // Validate user role requires agent
+            if (role === 'user' && !agentId) {
+                document.getElementById('addUserError').textContent = 'User role requires a linked agent';
+                document.getElementById('addUserError').classList.remove('d-none');
+                return;
+            }
+
+            const payload = {
+                username,
+                password,
+                email,
+                role,
+                agent_id: agentId ? parseInt(agentId) : null
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/users`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create user');
+                }
+
+                const data = await response.json();
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+                modal.hide();
+
+                // Reset form
+                form.reset();
+                document.getElementById('addUserError').classList.add('d-none');
+
+                // Refresh users
+                loadUsers();
+
+                alert(`User "${username}" created successfully!`);
+
+            } catch (error) {
+                console.error('Error creating user:', error);
+                document.getElementById('addUserError').textContent = error.message;
+                document.getElementById('addUserError').classList.remove('d-none');
+            }
+        }
+
+        // Show edit user modal
+        async function showEditUser(userId) {
+            try {
+                const response = await fetch(`${API_BASE}/users`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                const data = await response.json();
+                const user = data.users.find(u => u.id === userId);
+
+                if (!user) {
+                    alert('User not found');
+                    return;
+                }
+
+                // Populate form
+                document.getElementById('editUserId').value = user.id;
+                document.getElementById('editUsername').value = user.username;
+                document.getElementById('editUserEmail').value = user.email || '';
+                document.getElementById('editUserPassword').value = '';
+                document.getElementById('editUserRole').value = user.role;
+                document.getElementById('editUserAgent').value = user.agent_id || '';
+                document.getElementById('editUserActive').checked = user.active;
+
+                // Show/hide agent field
+                toggleEditAgentField();
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+                modal.show();
+
+            } catch (error) {
+                console.error('Error loading user:', error);
+                alert('Error loading user details');
+            }
+        }
+
+        // Edit user
+        async function handleEditUser(event) {
+            event.preventDefault();
+
+            const userId = document.getElementById('editUserId').value;
+            const email = document.getElementById('editUserEmail').value.trim() || null;
+            const password = document.getElementById('editUserPassword').value.trim();
+            const role = document.getElementById('editUserRole').value;
+            const agentId = document.getElementById('editUserAgent').value || null;
+            const active = document.getElementById('editUserActive').checked;
+
+            // Validate user role requires agent
+            if (role === 'user' && !agentId) {
+                document.getElementById('editUserError').textContent = 'User role requires a linked agent';
+                document.getElementById('editUserError').classList.remove('d-none');
+                return;
+            }
+
+            const payload = {
+                email,
+                role,
+                agent_id: agentId ? parseInt(agentId) : null,
+                active
+            };
+
+            // Only include password if provided
+            if (password) {
+                payload.password = password;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/users/${userId}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to update user');
+                }
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+                modal.hide();
+
+                // Reset error
+                document.getElementById('editUserError').classList.add('d-none');
+
+                // Refresh users
+                loadUsers();
+
+                alert('User updated successfully!');
+
+            } catch (error) {
+                console.error('Error updating user:', error);
+                document.getElementById('editUserError').textContent = error.message;
+                document.getElementById('editUserError').classList.remove('d-none');
+            }
+        }
+
+        // Delete/deactivate user
+        async function deleteUser(userId, username) {
+            if (!confirm(`Are you sure you want to deactivate user "${username}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to delete user');
+                }
+
+                // Refresh users
+                loadUsers();
+
+                alert(`User "${username}" deactivated successfully`);
+
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert(error.message);
+            }
+        }
+
+        // Populate agent dropdowns for user modals
+        function populateUserAgentDropdowns() {
+            const newUserAgent = document.getElementById('newUserAgent');
+            const editUserAgent = document.getElementById('editUserAgent');
+
+            [newUserAgent, editUserAgent].forEach(select => {
+                // Keep the "None" option
+                select.innerHTML = '<option value="">None (Admin only)</option>';
+
+                agents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent.id;
+                    option.textContent = `${agent.name} - ${agent.site}`;
+                    select.appendChild(option);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
