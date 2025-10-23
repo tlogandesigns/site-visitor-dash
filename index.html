@@ -70,9 +70,97 @@
             text-align: center;
             padding: 20px;
         }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            min-width: 300px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .toast-success {
+            border-left: 4px solid #28a745;
+        }
+
+        .toast-error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .toast-warning {
+            border-left: 4px solid #ffc107;
+        }
+
+        .toast-info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        /* Loading spinner on buttons */
+        .btn-loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spinner 0.6s linear infinite;
+        }
+
+        @keyframes spinner {
+            to {transform: rotate(360deg);}
+        }
+
+        /* Form validation feedback */
+        .is-invalid {
+            border-color: #dc3545;
+            padding-right: calc(1.5em + 0.75rem);
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        }
+
+        .is-valid {
+            border-color: #28a745;
+            padding-right: calc(1.5em + 0.75rem);
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        }
+
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+
+        .is-invalid ~ .invalid-feedback {
+            display: block;
+        }
     </style>
 </head>
 <body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
     <!-- Login Screen -->
     <div id="loginScreen" class="d-none">
         <div class="container">
@@ -412,7 +500,10 @@
                     <!-- Populated by JavaScript -->
                 </div>
                 <div class="modal-footer">
-                    <div class="input-group">
+                    <button type="button" class="btn btn-danger" id="deleteVisitorBtn" style="display: none;" onclick="deleteVisitorFromDetail()">
+                        <i class="bi bi-trash"></i> Delete Lead
+                    </button>
+                    <div class="input-group flex-grow-1">
                         <input type="text" class="form-control" id="newNote" placeholder="Add a note...">
                         <button class="btn btn-primary" onclick="addNote()">
                             <i class="bi bi-plus"></i> Add Note
@@ -530,9 +621,28 @@
     </div>
     </div> <!-- Close mainApp -->
 
+    <!-- Confirmation Modal -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalTitle">Confirm Action</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody">
+                    Are you sure you want to proceed?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalConfirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
         // Configuration
         const API_BASE = window.location.origin.includes('localhost')
@@ -544,6 +654,184 @@
         let sites = [];
         let authToken = null;
         let currentUser = null;
+
+        // ==================== UTILITY FUNCTIONS ====================
+
+        /**
+         * Show toast notification
+         * @param {string} message - Message to display
+         * @param {string} type - success, error, warning, info
+         * @param {number} duration - Duration in milliseconds (default 5000)
+         */
+        function showToast(message, type = 'info', duration = 5000) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+
+            const iconMap = {
+                'success': 'check-circle',
+                'error': 'x-circle',
+                'warning': 'exclamation-triangle',
+                'info': 'info-circle'
+            };
+
+            const titleMap = {
+                'success': 'Success',
+                'error': 'Error',
+                'warning': 'Warning',
+                'info': 'Information'
+            };
+
+            const toastHTML = `
+                <div id="${toastId}" class="toast toast-${type}" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="bi bi-${iconMap[type]} me-2 text-${type === 'error' ? 'danger' : type}"></i>
+                        <strong class="me-auto">${titleMap[type]}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: duration });
+            toast.show();
+
+            // Remove from DOM after hidden
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+
+        /**
+         * Show confirmation dialog
+         * @param {string} message - Confirmation message
+         * @param {string} title - Modal title
+         * @param {function} onConfirm - Callback function on confirm
+         * @param {string} confirmText - Confirm button text
+         * @param {string} confirmClass - Confirm button class
+         */
+        function showConfirm(message, title = 'Confirm Action', onConfirm, confirmText = 'Confirm', confirmClass = 'btn-danger') {
+            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalBody').textContent = message;
+
+            const confirmBtn = document.getElementById('confirmModalConfirm');
+            confirmBtn.textContent = confirmText;
+            confirmBtn.className = `btn ${confirmClass}`;
+
+            // Remove old event listeners
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+            // Add new event listener
+            newConfirmBtn.addEventListener('click', () => {
+                modal.hide();
+                if (onConfirm) onConfirm();
+            });
+
+            modal.show();
+        }
+
+        /**
+         * Set button loading state
+         * @param {HTMLElement} button - Button element
+         * @param {boolean} loading - Loading state
+         * @param {string} originalText - Original button text (optional)
+         */
+        function setButtonLoading(button, loading, originalText = null) {
+            if (loading) {
+                button.dataset.originalText = button.innerHTML;
+                button.classList.add('btn-loading');
+                button.disabled = true;
+            } else {
+                button.classList.remove('btn-loading');
+                button.disabled = false;
+                if (originalText) {
+                    button.innerHTML = originalText;
+                } else if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                }
+            }
+        }
+
+        /**
+         * Handle API errors with user-friendly messages
+         * @param {Error|Response} error - Error object or fetch response
+         * @param {string} defaultMessage - Default error message
+         */
+        async function handleApiError(error, defaultMessage = 'An error occurred') {
+            let message = defaultMessage;
+
+            if (error.response) {
+                // Fetch response error
+                try {
+                    const data = await error.json();
+                    if (data.detail) {
+                        if (Array.isArray(data.detail)) {
+                            // Pydantic validation errors
+                            message = data.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                        } else {
+                            message = data.detail;
+                        }
+                    }
+                } catch (e) {
+                    message = error.statusText || defaultMessage;
+                }
+            } else if (error.message) {
+                message = error.message;
+            }
+
+            showToast(message, 'error', 7000);
+            return message;
+        }
+
+        /**
+         * Validate form field
+         * @param {HTMLElement} field - Form field element
+         * @param {function} validator - Validation function that returns error message or null
+         */
+        function validateField(field, validator) {
+            const error = validator(field.value);
+            const feedbackId = field.id + '-feedback';
+            let feedbackEl = document.getElementById(feedbackId);
+
+            if (error) {
+                field.classList.remove('is-valid');
+                field.classList.add('is-invalid');
+
+                if (!feedbackEl) {
+                    feedbackEl = document.createElement('div');
+                    feedbackEl.id = feedbackId;
+                    feedbackEl.className = 'invalid-feedback';
+                    field.parentNode.appendChild(feedbackEl);
+                }
+                feedbackEl.textContent = error;
+                return false;
+            } else {
+                field.classList.remove('is-invalid');
+                field.classList.add('is-valid');
+                if (feedbackEl) {
+                    feedbackEl.remove();
+                }
+                return true;
+            }
+        }
+
+        /**
+         * Clear validation from field
+         * @param {HTMLElement} field - Form field element
+         */
+        function clearValidation(field) {
+            field.classList.remove('is-valid', 'is-invalid');
+            const feedbackId = field.id + '-feedback';
+            const feedbackEl = document.getElementById(feedbackId);
+            if (feedbackEl) {
+                feedbackEl.remove();
+            }
+        }
 
         // Authentication utilities
         function getAuthHeaders() {
@@ -615,8 +903,10 @@
 
             } catch (error) {
                 console.error('Login error:', error);
-                errorDiv.textContent = error.message || 'Invalid username or password';
+                const message = error.message || 'Invalid username or password';
+                errorDiv.textContent = message;
                 errorDiv.classList.remove('d-none');
+                showToast(message, 'error');
             }
         }
 
@@ -819,12 +1109,19 @@
                     const row = document.createElement('tr');
                     row.style.cursor = 'pointer';
                     row.onclick = () => showVisitorDetail(visitor.id);
-                    
+
                     const date = new Date(visitor.created_at);
-                    const cincBadge = visitor.cinc_synced 
+                    const cincBadge = visitor.cinc_synced
                         ? '<span class="badge badge-synced">Synced</span>'
                         : '<span class="badge badge-pending">Pending</span>';
-                    
+
+                    // Show delete button only for admins and super_admins
+                    const deleteButton = (currentUser.role === 'admin' || currentUser.role === 'super_admin')
+                        ? `<button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteVisitor(${visitor.id}, '${visitor.buyer_name.replace(/'/g, "\\'")}')">
+                               <i class="bi bi-trash"></i>
+                           </button>`
+                        : '';
+
                     row.innerHTML = `
                         <td>${date.toLocaleDateString()}</td>
                         <td><strong>${visitor.buyer_name}</strong></td>
@@ -839,9 +1136,10 @@
                             <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showVisitorDetail(${visitor.id})">
                                 <i class="bi bi-eye"></i>
                             </button>
+                            ${deleteButton}
                         </td>
                     `;
-                    
+
                     tableBody.appendChild(row);
                 });
             } catch (error) {
@@ -854,11 +1152,16 @@
         // Submit new visitor
         async function submitVisitor() {
             const form = document.getElementById('visitorForm');
+            const submitBtn = event.target || document.querySelector('#addVisitorModal .btn-primary');
+
             if (!form.checkValidity()) {
                 form.reportValidity();
+                showToast('Please fill in all required fields', 'warning');
                 return;
             }
-            
+
+            setButtonLoading(submitBtn, true);
+
             const payload = {
                 buyer_name: document.getElementById('buyerName').value,
                 buyer_phone: document.getElementById('buyerPhone').value,
@@ -887,29 +1190,35 @@
                     return;
                 }
 
-                if (!response.ok) throw new Error('Failed to create visitor');
-                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw errorData;
+                }
+
                 const data = await response.json();
-                
+
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addVisitorModal'));
                 modal.hide();
-                
+
                 // Reset form
                 form.reset();
-                
+
                 // Refresh data
                 loadVisitors();
                 loadStats();
-                
+
                 // Show success message
-                alert(data.cinc_synced 
-                    ? 'Visitor added and synced to CINC!' 
-                    : 'Visitor added (CINC sync pending)');
-                
+                const message = data.synced
+                    ? 'Visitor added and synced to CINC successfully!'
+                    : 'Visitor added successfully! CINC sync pending.';
+                showToast(message, data.synced ? 'success' : 'warning');
+
             } catch (error) {
                 console.error('Error creating visitor:', error);
-                alert('Error adding visitor. Please try again.');
+                await handleApiError(error, 'Failed to add visitor. Please check your input and try again.');
+            } finally {
+                setButtonLoading(submitBtn, false);
             }
         }
 
@@ -926,10 +1235,19 @@
                     return;
                 }
                 const data = await response.json();
-                
+
                 const visitor = data.visitor;
                 const notes = data.notes;
-                
+
+                // Show/hide delete button based on user role
+                const deleteBtn = document.getElementById('deleteVisitorBtn');
+                if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
+                    deleteBtn.style.display = 'block';
+                    deleteBtn.setAttribute('data-visitor-name', visitor.buyer_name);
+                } else {
+                    deleteBtn.style.display = 'none';
+                }
+
                 let html = `
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -982,22 +1300,25 @@
                 
             } catch (error) {
                 console.error('Error loading visitor detail:', error);
-                alert('Error loading visitor details');
+                await handleApiError(error, 'Failed to load visitor details');
             }
         }
 
         // Add note
         async function addNote() {
             const noteText = document.getElementById('newNote').value.trim();
+            const noteInput = document.getElementById('newNote');
+
             if (!noteText) {
-                alert('Please enter a note');
+                showToast('Please enter a note', 'warning');
+                noteInput.focus();
                 return;
             }
 
             // Use logged-in user's agent_id
             const agentId = currentUser?.agent_id;
             if (!agentId) {
-                alert('No agent linked to your account');
+                showToast('No agent linked to your account', 'error');
                 return;
             }
 
@@ -1019,14 +1340,18 @@
                     return;
                 }
                 
-                if (!response.ok) throw new Error('Failed to add note');
-                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw errorData;
+                }
+
                 document.getElementById('newNote').value = '';
+                showToast('Note added successfully', 'success');
                 showVisitorDetail(currentVisitorId);
-                
+
             } catch (error) {
                 console.error('Error adding note:', error);
-                alert('Error adding note');
+                await handleApiError(error, 'Failed to add note');
             }
         }
 
@@ -1060,7 +1385,7 @@
             })
             .catch(error => {
                 console.error('Export error:', error);
-                alert('Error exporting data');
+                showToast('Failed to export data', 'error');
             });
         }
 
@@ -1068,6 +1393,73 @@
         function refreshData() {
             loadVisitors();
             loadStats();
+        }
+
+        // ==== VISITOR MANAGEMENT FUNCTIONS ====
+
+        // Delete visitor (admin only)
+        function deleteVisitor(visitorId, visitorName) {
+            showConfirm(
+                `Are you sure you want to permanently delete the lead for "${visitorName}"? This action cannot be undone and will also delete all associated notes.`,
+                'Confirm Lead Deletion',
+                async () => {
+                    await performDeleteVisitor(visitorId, visitorName);
+                },
+                'Delete Lead',
+                'btn-danger'
+            );
+        }
+
+        async function performDeleteVisitor(visitorId, visitorName) {
+            try {
+                const response = await fetch(`${API_BASE}/visitors/${visitorId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw errorData;
+                }
+
+                const data = await response.json();
+
+                // Refresh data
+                loadVisitors();
+                loadStats();
+
+                showToast(`Lead "${visitorName}" deleted successfully`, 'success');
+
+            } catch (error) {
+                console.error('Error deleting visitor:', error);
+                await handleApiError(error, 'Failed to delete lead');
+            }
+        }
+
+        // Delete visitor from detail modal
+        function deleteVisitorFromDetail() {
+            const deleteBtn = document.getElementById('deleteVisitorBtn');
+            const visitorName = deleteBtn.getAttribute('data-visitor-name');
+
+            showConfirm(
+                `Are you sure you want to permanently delete the lead for "${visitorName}"? This action cannot be undone and will also delete all associated notes.`,
+                'Confirm Lead Deletion',
+                async () => {
+                    await performDeleteVisitor(currentVisitorId, visitorName);
+                    // Close the detail modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('visitorDetailModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                },
+                'Delete Lead',
+                'btn-danger'
+            );
         }
 
         // ==== USER MANAGEMENT FUNCTIONS ====
@@ -1118,7 +1510,7 @@
 
             } catch (error) {
                 console.error('Error loading users:', error);
-                alert('Error loading users');
+                await handleApiError(error, 'Failed to load users');
             } finally {
                 document.getElementById('usersLoading').style.display = 'none';
             }
@@ -1229,11 +1621,12 @@
                 // Refresh users
                 loadUsers();
 
-                alert(`User "${username}" created successfully!`);
+                showToast(`User "${username}" created successfully!`, 'success');
 
             } catch (error) {
                 console.error('Error creating user:', error);
-                document.getElementById('addUserError').textContent = error.message;
+                const message = await handleApiError(error, 'Failed to create user');
+                document.getElementById('addUserError').textContent = message;
                 document.getElementById('addUserError').classList.remove('d-none');
             }
         }
@@ -1254,7 +1647,7 @@
                 const user = data.users.find(u => u.id === userId);
 
                 if (!user) {
-                    alert('User not found');
+                    showToast('User not found', 'error');
                     return;
                 }
 
@@ -1276,7 +1669,7 @@
 
             } catch (error) {
                 console.error('Error loading user:', error);
-                alert('Error loading user details');
+                await handleApiError(error, 'Failed to load user details');
             }
         }
 
@@ -1337,20 +1730,30 @@
                 // Refresh users
                 loadUsers();
 
-                alert('User updated successfully!');
+                showToast('User updated successfully!', 'success');
 
             } catch (error) {
                 console.error('Error updating user:', error);
-                document.getElementById('editUserError').textContent = error.message;
+                const message = await handleApiError(error, 'Failed to update user');
+                document.getElementById('editUserError').textContent = message;
                 document.getElementById('editUserError').classList.remove('d-none');
             }
         }
 
         // Delete/deactivate user
         async function deleteUser(userId, username) {
-            if (!confirm(`Are you sure you want to deactivate user "${username}"?`)) {
-                return;
-            }
+            showConfirm(
+                `Are you sure you want to deactivate user "${username}"? This action will prevent them from logging in.`,
+                'Confirm Deactivation',
+                async () => {
+                    await performDeleteUser(userId, username);
+                },
+                'Deactivate',
+                'btn-danger'
+            );
+        }
+
+        async function performDeleteUser(userId, username) {
 
             try {
                 const response = await fetch(`${API_BASE}/users/${userId}`, {
@@ -1371,11 +1774,11 @@
                 // Refresh users
                 loadUsers();
 
-                alert(`User "${username}" deactivated successfully`);
+                showToast(`User "${username}" deactivated successfully`, 'success');
 
             } catch (error) {
                 console.error('Error deleting user:', error);
-                alert(error.message);
+                await handleApiError(error, 'Failed to deactivate user');
             }
         }
 

@@ -789,21 +789,58 @@ def add_note(visitor_id: int, note: NoteCreate, current_user: UserInDB = Depends
     """Add timestamped note to visitor"""
     with get_db() as conn:
         cursor = conn.cursor()
-        
+
         # Verify visitor exists
         visitor = cursor.execute("SELECT id FROM visitors WHERE id = ?", (visitor_id,)).fetchone()
         if not visitor:
             raise HTTPException(status_code=404, detail="Visitor not found")
-        
+
         cursor.execute("""
             INSERT INTO visitor_notes (visitor_id, agent_id, note)
             VALUES (?, ?, ?)
         """, (visitor_id, note.agent_id, note.note))
-        
-        cursor.execute("UPDATE visitors SET updated_at = ? WHERE id = ?", 
+
+        cursor.execute("UPDATE visitors SET updated_at = ? WHERE id = ?",
                       (datetime.now().isoformat(), visitor_id))
-        
+
         return {"id": cursor.lastrowid, "created_at": datetime.now().isoformat()}
+
+@app.delete("/visitors/{visitor_id}")
+def delete_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_user)):
+    """
+    Delete visitor (admin and super_admin only)
+    Users cannot delete visitors - only admins can perform this action
+    """
+    # Only admins and super_admins can delete visitors
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete visitors"
+        )
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Check if visitor exists
+        visitor = cursor.execute(
+            "SELECT id, buyer_name FROM visitors WHERE id = ?",
+            (visitor_id,)
+        ).fetchone()
+
+        if not visitor:
+            raise HTTPException(status_code=404, detail="Visitor not found")
+
+        # Delete associated notes first (due to foreign key)
+        cursor.execute("DELETE FROM visitor_notes WHERE visitor_id = ?", (visitor_id,))
+
+        # Delete visitor
+        cursor.execute("DELETE FROM visitors WHERE id = ?", (visitor_id,))
+
+        return {
+            "message": "Visitor deleted successfully",
+            "visitor_id": visitor_id,
+            "visitor_name": visitor["buyer_name"]
+        }
 
 @app.get("/visitors/export/csv")
 def export_visitors_csv(site: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
