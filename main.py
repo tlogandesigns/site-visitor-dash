@@ -1083,15 +1083,25 @@ def get_analytics(site: Optional[str] = None, current_user: UserInDB = Depends(g
         # Leads by agent (admins only)
         leads_by_agent = []
         if current_user.role in ["admin", "super_admin"]:
-            agent_where = f"WHERE site = '{site}'" if site else ""
-            leads_by_agent = cursor.execute(f"""
-                SELECT a.name as agent_name, COUNT(v.id) as count
-                FROM agents a
-                LEFT JOIN visitors v ON a.id = v.capturing_agent_id
-                {agent_where}
-                GROUP BY a.id, a.name
-                ORDER BY count DESC
-            """).fetchall()
+            if site:
+                # Filter agents by site and count their visitors
+                leads_by_agent = cursor.execute("""
+                    SELECT a.name as agent_name, COUNT(v.id) as count
+                    FROM agents a
+                    LEFT JOIN visitors v ON a.id = v.capturing_agent_id AND v.site = ?
+                    WHERE a.site = ?
+                    GROUP BY a.id, a.name
+                    ORDER BY count DESC
+                """, (site, site)).fetchall()
+            else:
+                # All agents and their visitor counts
+                leads_by_agent = cursor.execute("""
+                    SELECT a.name as agent_name, COUNT(v.id) as count
+                    FROM agents a
+                    LEFT JOIN visitors v ON a.id = v.capturing_agent_id
+                    GROUP BY a.id, a.name
+                    ORDER BY count DESC
+                """).fetchall()
 
         # CINC sync rate
         sync_stats = cursor.execute(f"""
