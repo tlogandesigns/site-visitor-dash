@@ -1267,6 +1267,10 @@
                     deleteBtn.style.display = 'none';
                 }
 
+                // Store capturing_agent_id for note creation
+                const visitorDetailModal = document.getElementById('visitorDetailModal');
+                visitorDetailModal.dataset.capturingAgentId = visitor.capturing_agent_id;
+
                 let html = `
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -1334,11 +1338,20 @@
                 return;
             }
 
-            // Use logged-in user's agent_id
-            const agentId = currentUser?.agent_id;
+            // For regular users, use their agent_id
+            // For admins without agent_id, use the visitor's capturing agent
+            let agentId = currentUser?.agent_id;
+
             if (!agentId) {
-                showToast('No agent linked to your account', 'error');
-                return;
+                // Admin without agent_id - use visitor's capturing agent
+                const visitorDetailModal = document.getElementById('visitorDetailModal');
+                const capturingAgentId = visitorDetailModal.dataset.capturingAgentId;
+
+                if (!capturingAgentId) {
+                    showToast('Unable to determine agent for this note', 'error');
+                    return;
+                }
+                agentId = parseInt(capturingAgentId);
             }
 
             const payload = {
