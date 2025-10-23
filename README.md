@@ -481,6 +481,18 @@ docker-compose up -d
 
 ---
 
+## 📚 Documentation
+
+Detailed documentation is available in the `/docs` folder:
+
+- **[API_ENHANCEMENTS.md](docs/API_ENHANCEMENTS.md)** - Latest API improvements, validation, pagination, search/filter/sort
+- **[CLAUDE.md](docs/CLAUDE.md)** - Claude Code development guide and command reference
+- **[GOOGLE_SHEETS_SETUP.md](docs/GOOGLE_SHEETS_SETUP.md)** - Google Sheets integration setup guide
+- **[SHEETS_IMPORT_QUICKSTART.md](docs/SHEETS_IMPORT_QUICKSTART.md)** - Quick guide to import agents from Google Sheets
+- **[ZAPIER_SETUP.md](docs/ZAPIER_SETUP.md)** - Zapier webhook configuration for CINC integration
+
+---
+
 ## 📈 Future Enhancements
 
 - [ ] User authentication (agent login)

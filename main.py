@@ -7,9 +7,10 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import sqlite3
@@ -17,6 +18,7 @@ import requests
 import csv
 import io
 import os
+import re
 from contextlib import contextmanager
 
 app = FastAPI(title="New Homes Lead Tracker", version="1.0.0")
@@ -64,6 +66,58 @@ def get_db():
     finally:
         conn.close()
 
+# Validation Enums
+class UserRole(str, Enum):
+    SUPER_ADMIN = "super_admin"
+    ADMIN = "admin"
+    USER = "user"
+
+class PurchaseTimeline(str, Enum):
+    ZERO_TO_THREE = "0-3 months"
+    THREE_TO_SIX = "3-6 months"
+    SIX_TO_TWELVE = "6-12 months"
+    TWELVE_PLUS = "12+ months"
+    BROWSING = "Just browsing"
+
+class PriceRange(str, Enum):
+    UNDER_200K = "Under $200k"
+    RANGE_200K_300K = "$200k-$300k"
+    RANGE_300K_400K = "$300k-$400k"
+    RANGE_400K_500K = "$400k-$500k"
+    OVER_500K = "$500k+"
+
+class SortField(str, Enum):
+    CREATED_AT = "created_at"
+    BUYER_NAME = "buyer_name"
+    SITE = "site"
+    UPDATED_AT = "updated_at"
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+# Helper Functions for Validation
+def validate_phone_number(phone: str) -> str:
+    """Validate and normalize phone number"""
+    if not phone:
+        return phone
+    # Remove all non-digit characters
+    cleaned = re.sub(r'\D', '', phone)
+    if len(cleaned) < 10:
+        raise ValueError("Phone number must be at least 10 digits")
+    return cleaned
+
+def sanitize_string(value: str, max_length: int = 255) -> str:
+    """Sanitize string input"""
+    if not value:
+        return value
+    # Remove leading/trailing whitespace
+    cleaned = value.strip()
+    # Limit length
+    if len(cleaned) > max_length:
+        raise ValueError(f"Input exceeds maximum length of {max_length} characters")
+    return cleaned
+
 # Pydantic Models
 class Token(BaseModel):
     access_token: str
@@ -80,45 +134,115 @@ class UserInDB(BaseModel):
     active: bool
 
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3, max_length=50, pattern="^[a-zA-Z0-9_-]+$")
+    password: str = Field(..., min_length=8, max_length=100)
     email: Optional[EmailStr] = None
-    role: str  # 'super_admin', 'admin' or 'user'
-    agent_id: Optional[int] = None
+    role: UserRole
+    agent_id: Optional[int] = Field(None, gt=0)
+
+    @validator('username')
+    def username_alphanumeric(cls, v):
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username must contain only letters, numbers, underscores, and hyphens')
+        return v.lower()
+
+    @validator('password')
+    def password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Za-z]', v):
+            raise ValueError('Password must contain at least one letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        return v
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    agent_id: Optional[int] = None
+    password: Optional[str] = Field(None, min_length=8, max_length=100)
+    role: Optional[UserRole] = None
+    agent_id: Optional[int] = Field(None, gt=0)
     active: Optional[bool] = None
 
+    @validator('password')
+    def password_strength(cls, v):
+        if v is None:
+            return v
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Za-z]', v):
+            raise ValueError('Password must contain at least one letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        return v
+
 class VisitorCreate(BaseModel):
-    buyer_name: str
-    buyer_phone: str
+    buyer_name: str = Field(..., min_length=2, max_length=255)
+    buyer_phone: str = Field(..., min_length=10, max_length=20)
     buyer_email: Optional[EmailStr] = None
-    purchase_timeline: Optional[str] = None
-    price_range: Optional[str] = None
-    location_looking: Optional[str] = None
-    location_current: Optional[str] = None
-    occupation: Optional[str] = None
+    purchase_timeline: Optional[PurchaseTimeline] = None
+    price_range: Optional[PriceRange] = None
+    location_looking: Optional[str] = Field(None, max_length=255)
+    location_current: Optional[str] = Field(None, max_length=255)
+    occupation: Optional[str] = Field(None, max_length=100)
     represented: bool = False
-    agent_name: Optional[str] = None
-    capturing_agent_id: int
-    site: str
-    notes: Optional[str] = None
+    agent_name: Optional[str] = Field(None, max_length=255)
+    capturing_agent_id: int = Field(..., gt=0)
+    site: str = Field(..., min_length=1, max_length=100)
+    notes: Optional[str] = Field(None, max_length=2000)
+
+    @validator('buyer_name')
+    def validate_buyer_name(cls, v):
+        return sanitize_string(v, 255)
+
+    @validator('buyer_phone')
+    def validate_buyer_phone(cls, v):
+        return validate_phone_number(v)
+
+    @validator('location_looking', 'location_current', 'occupation', 'agent_name', 'site')
+    def validate_strings(cls, v):
+        if v is None:
+            return v
+        return sanitize_string(v, 255)
+
+    @validator('notes')
+    def validate_notes(cls, v):
+        if v is None:
+            return v
+        return sanitize_string(v, 2000)
 
 class NoteCreate(BaseModel):
-    visitor_id: int
-    agent_id: int
-    note: str
+    visitor_id: int = Field(..., gt=0)
+    agent_id: int = Field(..., gt=0)
+    note: str = Field(..., min_length=1, max_length=2000)
+
+    @validator('note')
+    def validate_note(cls, v):
+        return sanitize_string(v, 2000)
 
 class AgentCreate(BaseModel):
-    name: str
-    cinc_id: str
-    site: str
+    name: str = Field(..., min_length=2, max_length=255)
+    cinc_id: str = Field(..., min_length=1, max_length=50)
+    site: str = Field(..., min_length=1, max_length=100)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = None
+    phone: Optional[str] = Field(None, max_length=20)
+
+    @validator('name', 'site')
+    def validate_strings(cls, v):
+        return sanitize_string(v, 255)
+
+    @validator('phone')
+    def validate_phone(cls, v):
+        if v is None:
+            return v
+        return validate_phone_number(v)
+
+class PaginatedResponse(BaseModel):
+    """Generic paginated response"""
+    items: List[dict]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 # Authentication Helper Functions
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -133,9 +257,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -513,32 +637,120 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
         }
 
 @app.get("/visitors")
-def list_visitors(site: Optional[str] = None, limit: int = 100, offset: int = 0, current_user: UserInDB = Depends(get_current_user)):
-    """List all visitors with optional site filter. Users only see their own leads, admins and super_admins see all."""
+def list_visitors(
+    page: int = 1,
+    page_size: int = 50,
+    site: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: SortField = SortField.CREATED_AT,
+    sort_order: SortOrder = SortOrder.DESC,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    purchase_timeline: Optional[PurchaseTimeline] = None,
+    price_range: Optional[PriceRange] = None,
+    cinc_synced: Optional[bool] = None,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    List all visitors with pagination, search, filter, and sort.
+    Users only see their own leads, admins and super_admins see all.
+
+    Parameters:
+    - page: Page number (starts at 1)
+    - page_size: Items per page (max 100)
+    - site: Filter by site/community
+    - search: Search in buyer name, phone, or email
+    - sort_by: Field to sort by (created_at, buyer_name, site, updated_at)
+    - sort_order: Sort order (asc, desc)
+    - date_from: Filter by creation date (ISO format)
+    - date_to: Filter by creation date (ISO format)
+    - purchase_timeline: Filter by purchase timeline
+    - price_range: Filter by price range
+    - cinc_synced: Filter by CINC sync status (true/false)
+    """
+    # Validate pagination
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page must be >= 1")
+    if page_size < 1 or page_size > 100:
+        raise HTTPException(status_code=400, detail="Page size must be between 1 and 100")
+
+    offset = (page - 1) * page_size
+
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Users can only see visitors they created, admins and super_admins see all
+        # Build WHERE clause
+        where_conditions = []
+        params = []
+
+        # Role-based filtering
         if current_user.role == "user":
-            if site:
-                query = "SELECT * FROM visitor_details WHERE site = ? AND capturing_agent_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
-                params = (site, current_user.agent_id, limit, offset)
-            else:
-                query = "SELECT * FROM visitor_details WHERE capturing_agent_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
-                params = (current_user.agent_id, limit, offset)
-        else:  # admin or super_admin
-            if site:
-                query = "SELECT * FROM visitor_details WHERE site = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
-                params = (site, limit, offset)
-            else:
-                query = "SELECT * FROM visitor_details ORDER BY created_at DESC LIMIT ? OFFSET ?"
-                params = (limit, offset)
+            where_conditions.append("capturing_agent_id = ?")
+            params.append(current_user.agent_id)
+
+        # Site filter
+        if site:
+            where_conditions.append("site = ?")
+            params.append(site)
+
+        # Search filter (name, phone, email)
+        if search:
+            search_term = f"%{search}%"
+            where_conditions.append("(buyer_name LIKE ? OR buyer_phone LIKE ? OR buyer_email LIKE ?)")
+            params.extend([search_term, search_term, search_term])
+
+        # Date range filter
+        if date_from:
+            where_conditions.append("DATE(created_at) >= DATE(?)")
+            params.append(date_from)
+        if date_to:
+            where_conditions.append("DATE(created_at) <= DATE(?)")
+            params.append(date_to)
+
+        # Purchase timeline filter
+        if purchase_timeline:
+            where_conditions.append("purchase_timeline = ?")
+            params.append(purchase_timeline.value)
+
+        # Price range filter
+        if price_range:
+            where_conditions.append("price_range = ?")
+            params.append(price_range.value)
+
+        # CINC sync filter
+        if cinc_synced is not None:
+            where_conditions.append("cinc_synced = ?")
+            params.append(1 if cinc_synced else 0)
+
+        # Construct WHERE clause
+        where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+
+        # Get total count
+        count_query = f"SELECT COUNT(*) as total FROM visitor_details WHERE {where_clause}"
+        total = cursor.execute(count_query, params).fetchone()["total"]
+
+        # Get paginated results with sorting
+        sort_column = sort_by.value
+        sort_direction = sort_order.value.upper()
+
+        query = f"""
+            SELECT * FROM visitor_details
+            WHERE {where_clause}
+            ORDER BY {sort_column} {sort_direction}
+            LIMIT ? OFFSET ?
+        """
+        params.extend([page_size, offset])
 
         visitors = cursor.execute(query, params).fetchall()
 
+        total_pages = (total + page_size - 1) // page_size
+
         return {
             "visitors": [dict(v) for v in visitors],
-            "count": len(visitors)
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages
         }
 
 @app.get("/visitors/{visitor_id}")
