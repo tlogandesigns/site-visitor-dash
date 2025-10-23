@@ -844,7 +844,7 @@ def delete_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current
 
 @app.get("/visitors/export/csv")
 def export_visitors_csv(site: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    """Export visitors to CSV. Users only export their own leads."""
+    """Export visitors to CSV with all notes. Users only export their own leads."""
     with get_db() as conn:
         cursor = conn.cursor()
 
@@ -870,17 +870,43 @@ def export_visitors_csv(site: Optional[str] = None, current_user: UserInDB = Dep
                 visitors = cursor.execute(
                     "SELECT * FROM visitor_details ORDER BY created_at DESC"
                 ).fetchall()
-        
-        # Create CSV in memory
+
+        # Create CSV in memory with notes
         output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=[desc[0] for desc in cursor.description])
+
+        # Define custom fieldnames including notes column
+        base_fieldnames = [desc[0] for desc in cursor.description]
+        fieldnames = base_fieldnames + ['all_notes']
+
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
-        
+
         for visitor in visitors:
-            writer.writerow(dict(visitor))
-        
+            visitor_dict = dict(visitor)
+
+            # Get all notes for this visitor
+            notes = cursor.execute("""
+                SELECT n.note, n.created_at, a.name as agent_name
+                FROM visitor_notes n
+                JOIN agents a ON n.agent_id = a.id
+                WHERE n.visitor_id = ?
+                ORDER BY n.created_at DESC
+            """, (visitor['id'],)).fetchall()
+
+            # Format notes as a single field with line breaks
+            if notes:
+                notes_text = " | ".join([
+                    f"[{note['created_at']} - {note['agent_name']}] {note['note']}"
+                    for note in notes
+                ])
+                visitor_dict['all_notes'] = notes_text
+            else:
+                visitor_dict['all_notes'] = ''
+
+            writer.writerow(visitor_dict)
+
         output.seek(0)
-        
+
         return StreamingResponse(
             iter([output.getvalue()]),
             media_type="text/csv",
@@ -996,6 +1022,96 @@ def get_stats(site: Optional[str] = None, current_user: UserInDB = Depends(get_c
             "total_visitors": total_visitors,
             "today_visitors": today_visitors,
             "cinc_synced": cinc_synced
+        }
+
+@app.get("/analytics")
+def get_analytics(site: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+    """Get analytics data for charts and graphs"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Base WHERE clause for role-based filtering
+        where_clause = ""
+        params = []
+
+        if current_user.role == "user":
+            where_clause = "WHERE capturing_agent_id = ?"
+            params.append(current_user.agent_id)
+            if site:
+                where_clause += " AND site = ?"
+                params.append(site)
+        else:  # admin
+            if site:
+                where_clause = "WHERE site = ?"
+                params.append(site)
+
+        # Leads by day (last 30 days)
+        leads_by_day = cursor.execute(f"""
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM visitors
+            {where_clause}
+            GROUP BY DATE(created_at)
+            ORDER BY date DESC
+            LIMIT 30
+        """, params).fetchall()
+
+        # Leads by timeline
+        leads_by_timeline = cursor.execute(f"""
+            SELECT purchase_timeline, COUNT(*) as count
+            FROM visitors
+            {where_clause}
+            GROUP BY purchase_timeline
+        """, params).fetchall()
+
+        # Leads by price range
+        leads_by_price = cursor.execute(f"""
+            SELECT price_range, COUNT(*) as count
+            FROM visitors
+            {where_clause}
+            GROUP BY price_range
+        """, params).fetchall()
+
+        # Leads by site/community
+        leads_by_site = cursor.execute(f"""
+            SELECT site, COUNT(*) as count
+            FROM visitors
+            {where_clause}
+            GROUP BY site
+            ORDER BY count DESC
+        """, params).fetchall()
+
+        # Leads by agent (admins only)
+        leads_by_agent = []
+        if current_user.role in ["admin", "super_admin"]:
+            agent_where = f"WHERE site = '{site}'" if site else ""
+            leads_by_agent = cursor.execute(f"""
+                SELECT a.name as agent_name, COUNT(v.id) as count
+                FROM agents a
+                LEFT JOIN visitors v ON a.id = v.capturing_agent_id
+                {agent_where}
+                GROUP BY a.id, a.name
+                ORDER BY count DESC
+            """).fetchall()
+
+        # CINC sync rate
+        sync_stats = cursor.execute(f"""
+            SELECT
+                SUM(CASE WHEN cinc_synced = 1 THEN 1 ELSE 0 END) as synced,
+                SUM(CASE WHEN cinc_synced = 0 THEN 1 ELSE 0 END) as not_synced
+            FROM visitors
+            {where_clause}
+        """, params).fetchone()
+
+        return {
+            "leads_by_day": [{"date": row["date"], "count": row["count"]} for row in leads_by_day],
+            "leads_by_timeline": [{"timeline": row["purchase_timeline"] or "Unknown", "count": row["count"]} for row in leads_by_timeline],
+            "leads_by_price": [{"price_range": row["price_range"] or "Unknown", "count": row["count"]} for row in leads_by_price],
+            "leads_by_site": [{"site": row["site"], "count": row["count"]} for row in leads_by_site],
+            "leads_by_agent": [{"agent_name": row["agent_name"], "count": row["count"]} for row in leads_by_agent],
+            "sync_stats": {
+                "synced": sync_stats["synced"] or 0,
+                "not_synced": sync_stats["not_synced"] or 0
+            }
         }
 
 def initialize_super_admin():

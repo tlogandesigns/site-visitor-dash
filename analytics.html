@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - New Homes Lead Tracker</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --cabernet: #670038;
+            --cabernet-light: #8a0049;
+            --cabernet-dark: #4a0028;
+        }
+
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .navbar {
+            background-color: var(--cabernet) !important;
+        }
+
+        .btn-primary {
+            background-color: var(--cabernet);
+            border-color: var(--cabernet);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--cabernet-light);
+            border-color: var(--cabernet-light);
+        }
+
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-card {
+            min-height: 350px;
+        }
+
+        .chart-card canvas {
+            max-height: 300px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            display: none;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-house-door"></i> New Homes Lead Tracker
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="analytics.html">
+                            <i class="bi bi-graph-up"></i> Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item" id="usersNavItem" style="display: none;">
+                        <a class="nav-link" href="index.html#users">
+                            <i class="bi bi-people"></i> Users
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center text-white">
+                    <span class="me-3">
+                        <i class="bi bi-person-circle"></i> <span id="currentUsername">...</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <h2><i class="bi bi-graph-up"></i> Analytics Dashboard</h2>
+                <p class="text-muted">Visual insights and performance metrics for your leads</p>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex gap-2">
+                    <select class="form-select" id="siteFilter" onchange="loadAnalytics()">
+                        <option value="">All Sites</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadAnalytics()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 1: Time-based Charts -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-calendar3"></i> Leads Over Time (Last 30 Days)
+                        </h5>
+                        <canvas id="leadsByDayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-arrow-repeat"></i> CINC Sync Status
+                        </h5>
+                        <canvas id="syncStatsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Distribution Charts -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-clock-history"></i> Leads by Purchase Timeline
+                        </h5>
+                        <canvas id="leadsByTimelineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-currency-dollar"></i> Leads by Price Range
+                        </h5>
+                        <canvas id="leadsByPriceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: Site & Agent Performance -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-geo-alt"></i> Leads by Site/Community
+                        </h5>
+                        <canvas id="leadsBySiteChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6" id="agentChartContainer" style="display: none;">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-person-badge"></i> Leads by Agent
+                        </h5>
+                        <canvas id="leadsByAgentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-bar-chart-line"></i> Summary Statistics
+                        </h5>
+                        <div class="row text-center" id="summaryStats">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // API Configuration
+        const API_BASE = (() => {
+            const hostname = window.location.hostname;
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:8000';
+            }
+            return '/api';
+        })();
+
+        console.log('API_BASE configured as:', API_BASE);
+
+        // Global state
+        let currentUser = null;
+        let charts = {};
+
+        // Auth helpers
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+
+        // Check authentication
+        async function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return false;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/me`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return false;
+                }
+
+                currentUser = await response.json();
+                document.getElementById('currentUsername').textContent = currentUser.username;
+
+                // Show users nav item for admins
+                if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
+                    document.getElementById('usersNavItem').style.display = 'block';
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                handleLogout();
+                return false;
+            }
+        }
+
+        // Load sites for filter
+        async function loadSites() {
+            try {
+                const response = await fetch(`${API_BASE}/sites`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('siteFilter');
+
+                    data.sites.forEach(site => {
+                        const option = document.createElement('option');
+                        option.value = site;
+                        option.textContent = site;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading sites:', error);
+            }
+        }
+
+        // Load analytics data
+        async function loadAnalytics() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
+
+            try {
+                const site = document.getElementById('siteFilter').value;
+                const url = site
+                    ? `${API_BASE}/analytics?site=${encodeURIComponent(site)}`
+                    : `${API_BASE}/analytics`;
+
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to load analytics');
+                }
+
+                const data = await response.json();
+
+                // Destroy existing charts
+                Object.values(charts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                charts = {};
+
+                // Show/hide agent chart based on role
+                if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
+                    document.getElementById('agentChartContainer').style.display = 'block';
+                }
+
+                // Render all charts
+                renderLeadsByDay(data.leads_by_day);
+                renderSyncStats(data.sync_stats);
+                renderLeadsByTimeline(data.leads_by_timeline);
+                renderLeadsByPrice(data.leads_by_price);
+                renderLeadsBySite(data.leads_by_site);
+
+                if (data.leads_by_agent && data.leads_by_agent.length > 0) {
+                    renderLeadsByAgent(data.leads_by_agent);
+                }
+
+                renderSummaryStats(data);
+
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                alert('Failed to load analytics. Please try again.');
+            } finally {
+                overlay.classList.remove('active');
+            }
+        }
+
+        // Chart rendering functions
+        function renderLeadsByDay(data) {
+            const chartData = data.reverse(); // Show oldest to newest
+            const ctx = document.getElementById('leadsByDayChart');
+
+            charts.leadsByDay = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(d => {
+                        const date = new Date(d.date);
+                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }),
+                    datasets: [{
+                        label: 'Leads',
+                        data: chartData.map(d => d.count),
+                        borderColor: '#670038',
+                        backgroundColor: 'rgba(103, 0, 56, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => {
+                                    const idx = items[0].dataIndex;
+                                    return chartData[idx].date;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderSyncStats(data) {
+            const ctx = document.getElementById('syncStatsChart');
+            const total = data.synced + data.not_synced;
+
+            charts.syncStats = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Synced', 'Pending'],
+                    datasets: [{
+                        data: [data.synced, data.not_synced],
+                        backgroundColor: ['#28a745', '#ffc107'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderLeadsByTimeline(data) {
+            const ctx = document.getElementById('leadsByTimelineChart');
+
+            charts.leadsByTimeline = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.timeline),
+                    datasets: [{
+                        label: 'Leads',
+                        data: data.map(d => d.count),
+                        backgroundColor: '#670038',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderLeadsByPrice(data) {
+            const ctx = document.getElementById('leadsByPriceChart');
+
+            charts.leadsByPrice = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.price_range),
+                    datasets: [{
+                        label: 'Leads',
+                        data: data.map(d => d.count),
+                        backgroundColor: '#8a0049',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderLeadsBySite(data) {
+            const ctx = document.getElementById('leadsBySiteChart');
+            const colors = [
+                '#670038', '#8a0049', '#a50062', '#c0007b', '#db0094',
+                '#4a0028', '#5a0032', '#6a003c', '#7a0046', '#8a0050'
+            ];
+
+            charts.leadsBySite = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: data.map(d => d.site),
+                    datasets: [{
+                        data: data.map(d => d.count),
+                        backgroundColor: colors.slice(0, data.length),
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderLeadsByAgent(data) {
+            const ctx = document.getElementById('leadsByAgentChart');
+
+            charts.leadsByAgent = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.agent_name),
+                    datasets: [{
+                        label: 'Leads',
+                        data: data.map(d => d.count),
+                        backgroundColor: '#670038',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderSummaryStats(data) {
+            const container = document.getElementById('summaryStats');
+
+            const totalLeads = data.leads_by_day.reduce((sum, d) => sum + d.count, 0);
+            const avgPerDay = totalLeads > 0 ? (totalLeads / data.leads_by_day.length).toFixed(1) : 0;
+            const syncRate = data.sync_stats.synced + data.sync_stats.not_synced > 0
+                ? ((data.sync_stats.synced / (data.sync_stats.synced + data.sync_stats.not_synced)) * 100).toFixed(1)
+                : 0;
+
+            const mostPopularTimeline = data.leads_by_timeline.length > 0
+                ? data.leads_by_timeline.reduce((max, d) => d.count > max.count ? d : max, data.leads_by_timeline[0])
+                : null;
+
+            const mostPopularPrice = data.leads_by_price.length > 0
+                ? data.leads_by_price.reduce((max, d) => d.count > max.count ? d : max, data.leads_by_price[0])
+                : null;
+
+            container.innerHTML = `
+                <div class="col-md-3">
+                    <div class="p-3">
+                        <h3 class="text-primary">${totalLeads}</h3>
+                        <p class="text-muted mb-0">Total Leads (30 days)</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3">
+                        <h3 class="text-primary">${avgPerDay}</h3>
+                        <p class="text-muted mb-0">Avg. Leads/Day</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3">
+                        <h3 class="text-success">${syncRate}%</h3>
+                        <p class="text-muted mb-0">CINC Sync Rate</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3">
+                        <h3 class="text-info">${mostPopularTimeline ? mostPopularTimeline.count : 0}</h3>
+                        <p class="text-muted mb-0">${mostPopularTimeline ? mostPopularTimeline.timeline : 'N/A'}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            const authenticated = await checkAuth();
+            if (authenticated) {
+                await loadSites();
+                await loadAnalytics();
+            }
+        });
+    </script>
+</body>
+</html>
