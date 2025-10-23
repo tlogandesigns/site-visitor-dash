@@ -644,10 +644,21 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Configuration
-        const API_BASE = window.location.origin.includes('localhost')
-            ? 'http://localhost:8000'
-            : '/api';  // Adjust for your deployment
+        // Configuration - Auto-detect API base URL
+        const API_BASE = (() => {
+            const origin = window.location.origin;
+            const hostname = window.location.hostname;
+
+            // Development (localhost)
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:8000';
+            }
+
+            // Production with nginx proxy
+            return '/api';
+        })();
+
+        console.log('API_BASE configured as:', API_BASE);
 
         let currentVisitorId = null;
         let agents = [];
@@ -886,6 +897,14 @@
                     },
                     body: formData
                 });
+
+                // Check content type before parsing
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text.substring(0, 200));
+                    throw new Error('Server returned invalid response. Check API connection.');
+                }
 
                 if (!response.ok) {
                     const error = await response.json();
