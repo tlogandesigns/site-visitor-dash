@@ -251,7 +251,7 @@
 
         // Auth helpers
         function getAuthHeaders() {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('authToken');
             return {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
@@ -259,14 +259,14 @@
         }
 
         function handleLogout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
             window.location.href = 'index.html';
         }
 
         // Check authentication
         async function checkAuth() {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('authToken');
             console.log('Checking auth, token exists:', !!token);
 
             if (!token) {
