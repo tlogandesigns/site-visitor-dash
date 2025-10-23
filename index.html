@@ -1604,8 +1604,22 @@
                 }
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to create user');
+                    const errorData = await response.json();
+                    let errorMessage = 'Failed to create user';
+
+                    if (errorData.detail) {
+                        if (Array.isArray(errorData.detail)) {
+                            // Pydantic validation errors
+                            errorMessage = errorData.detail.map(e => {
+                                const field = e.loc[e.loc.length - 1];
+                                return `${field}: ${e.msg}`;
+                            }).join('; ');
+                        } else {
+                            errorMessage = errorData.detail;
+                        }
+                    }
+
+                    throw new Error(errorMessage);
                 }
 
                 const data = await response.json();
@@ -1625,7 +1639,8 @@
 
             } catch (error) {
                 console.error('Error creating user:', error);
-                const message = await handleApiError(error, 'Failed to create user');
+                const message = error.message || 'Failed to create user';
+                showToast(message, 'error');
                 document.getElementById('addUserError').textContent = message;
                 document.getElementById('addUserError').classList.remove('d-none');
             }
@@ -1716,8 +1731,22 @@
                 }
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to update user');
+                    const errorData = await response.json();
+                    let errorMessage = 'Failed to update user';
+
+                    if (errorData.detail) {
+                        if (Array.isArray(errorData.detail)) {
+                            // Pydantic validation errors
+                            errorMessage = errorData.detail.map(e => {
+                                const field = e.loc[e.loc.length - 1];
+                                return `${field}: ${e.msg}`;
+                            }).join('; ');
+                        } else {
+                            errorMessage = errorData.detail;
+                        }
+                    }
+
+                    throw new Error(errorMessage);
                 }
 
                 // Close modal
@@ -1734,7 +1763,8 @@
 
             } catch (error) {
                 console.error('Error updating user:', error);
-                const message = await handleApiError(error, 'Failed to update user');
+                const message = error.message || 'Failed to update user';
+                showToast(message, 'error');
                 document.getElementById('editUserError').textContent = message;
                 document.getElementById('editUserError').classList.remove('d-none');
             }
