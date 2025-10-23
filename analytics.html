@@ -267,22 +267,36 @@
         // Check authentication
         async function checkAuth() {
             const token = localStorage.getItem('token');
+            console.log('Checking auth, token exists:', !!token);
+
             if (!token) {
+                console.log('No token found, redirecting to login');
                 window.location.href = 'index.html';
                 return false;
             }
 
             try {
+                console.log('Fetching user info from', `${API_BASE}/me`);
                 const response = await fetch(`${API_BASE}/me`, {
                     headers: getAuthHeaders()
                 });
 
+                console.log('Auth response status:', response.status);
+
                 if (response.status === 401) {
+                    console.log('Unauthorized, clearing token and redirecting');
                     handleLogout();
                     return false;
                 }
 
+                if (!response.ok) {
+                    console.error('Auth check failed with status:', response.status);
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
                 currentUser = await response.json();
+                console.log('User authenticated:', currentUser.username, 'Role:', currentUser.role);
+
                 document.getElementById('currentUsername').textContent = currentUser.username;
 
                 // Show users nav item for admins
@@ -293,7 +307,8 @@
                 return true;
             } catch (error) {
                 console.error('Auth check failed:', error);
-                handleLogout();
+                alert('Authentication error: ' + error.message + '\nCheck browser console for details.');
+                // Don't redirect immediately on error - let user see the error
                 return false;
             }
         }
