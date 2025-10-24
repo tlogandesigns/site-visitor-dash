@@ -1444,11 +1444,11 @@
         function filterAgentsBySite(site) {
             const agentSelect = document.getElementById('capturingAgent');
             agentSelect.innerHTML = '<option value="">Select agent...</option>';
-            
-            const filteredAgents = site 
-                ? agents.filter(a => a.site === site)
+
+            const filteredAgents = site
+                ? agents.filter(a => a.sites && a.sites.includes(site))
                 : agents;
-            
+
             filteredAgents.forEach(agent => {
                 const option = document.createElement('option');
                 option.value = agent.id;
@@ -2293,7 +2293,13 @@
                 agents.forEach(agent => {
                     const option = document.createElement('option');
                     option.value = agent.id;
-                    option.textContent = `${agent.name} - ${agent.site}`;
+
+                    // Show agent name with sites
+                    const sitesText = agent.sites && agent.sites.length > 0
+                        ? ` (${agent.sites.join(', ')})`
+                        : ' (No sites)';
+                    option.textContent = `${agent.name}${sitesText}`;
+
                     select.appendChild(option);
                 });
             });
