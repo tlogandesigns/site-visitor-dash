@@ -65,29 +65,54 @@ def import_agents():
             try:
                 agent_name = record.get('site_agent_name', '').strip()
                 cinc_id = record.get('agent_mdid', '').strip()
-                # Try both 'site' and 'Site' column names
-                site = record.get('site', '').strip() or record.get('Site', '').strip()
+                # Try both 'site' and 'Site' column names - can be comma-separated for multiple sites
+                sites_str = record.get('site', '').strip() or record.get('Site', '').strip() or record.get('sites', '').strip() or record.get('Sites', '').strip()
                 # Try various email column names
                 email = record.get('site_agent_email', '').strip() or record.get('Email', '').strip() or record.get('email', '').strip()
                 phone = record.get('Phone', '').strip() or record.get('phone', '').strip()
 
-                if not agent_name or not cinc_id or not site:
-                    print(f"Skipping incomplete record (missing required fields): agent_name='{agent_name}', cinc_id='{cinc_id}', site='{site}'")
+                if not agent_name or not cinc_id:
+                    print(f"Skipping incomplete record (missing required fields): agent_name='{agent_name}', cinc_id='{cinc_id}'")
                     skipped += 1
                     continue
-                
+
+                # Parse sites - can be comma-separated or single site
+                # If no sites provided, agent will be created without site assignments
+                sites = [s.strip() for s in sites_str.split(',') if s.strip()] if sites_str else []
+
+                # Insert or update agent
                 cursor.execute("""
-                    INSERT OR IGNORE INTO agents (name, cinc_id, site, email, phone)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (agent_name, cinc_id, site, email or None, phone or None))
-                
-                if cursor.rowcount > 0:
-                    print(f"✓ Imported: {agent_name} ({site})")
-                    imported += 1
+                    INSERT INTO agents (name, cinc_id, email, phone)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(cinc_id) DO UPDATE SET
+                        name = excluded.name,
+                        email = excluded.email,
+                        phone = excluded.phone
+                """, (agent_name, cinc_id, email or None, phone or None))
+
+                # Get agent_id (either newly inserted or existing)
+                cursor.execute("SELECT id FROM agents WHERE cinc_id = ?", (cinc_id,))
+                agent_id = cursor.fetchone()[0]
+
+                # Clear existing site assignments for this agent (we'll re-add them)
+                cursor.execute("DELETE FROM agent_sites WHERE agent_id = ?", (agent_id,))
+
+                # Add site assignments
+                sites_added = 0
+                if sites:
+                    for site in sites:
+                        cursor.execute("""
+                            INSERT OR IGNORE INTO agent_sites (agent_id, site)
+                            VALUES (?, ?)
+                        """, (agent_id, site))
+                        sites_added += 1
+
+                    print(f"✓ Imported: {agent_name} ({sites_added} site(s): {', '.join(sites)})")
                 else:
-                    print(f"○ Already exists: {agent_name} ({site})")
-                    skipped += 1
-                    
+                    print(f"✓ Imported: {agent_name} (no sites assigned)")
+
+                imported += 1
+
             except Exception as e:
                 print(f"Error importing {record}: {e}")
                 skipped += 1

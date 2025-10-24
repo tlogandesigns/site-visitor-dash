@@ -8,17 +8,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements.txt .
+COPY backend/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY main.py .
-COPY schema.sql .
-COPY create_admin.py .
-COPY migrate_users.py .
-COPY import_agents.py .
+COPY backend/main.py .
+COPY backend/schema.sql .
+COPY scripts/*.py ./scripts/
 
 # Create data directory
 RUN mkdir -p /data

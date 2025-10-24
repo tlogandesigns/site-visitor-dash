@@ -159,6 +159,34 @@
         .is-invalid ~ .invalid-feedback {
             display: block;
         }
+
+        /* Custom styling for Y/N toggle buttons */
+        .btn-outline-primary {
+            color: var(--cabernet);
+            border-color: var(--cabernet);
+        }
+
+        .btn-outline-primary:hover {
+            color: white;
+            background-color: var(--cabernet-light);
+            border-color: var(--cabernet-light);
+        }
+
+        .btn-check:checked + .btn-outline-primary {
+            color: white;
+            background-color: var(--cabernet);
+            border-color: var(--cabernet);
+        }
+
+        .btn-check:checked + .btn-outline-primary:hover {
+            background-color: var(--cabernet-light);
+            border-color: var(--cabernet-light);
+        }
+
+        .btn-check:focus + .btn-outline-primary,
+        .btn-outline-primary:focus {
+            box-shadow: 0 0 0 0.25rem rgba(103, 0, 56, 0.25);
+        }
     </style>
 </head>
 <body>
@@ -268,6 +296,11 @@
                     <i class="bi bi-person-gear"></i> User Management
                 </button>
             </li>
+            <li class="nav-item" role="presentation" id="agentsTabNav" style="display: none;">
+                <button class="nav-link" id="agents-tab" data-bs-toggle="tab" data-bs-target="#agentsTab" type="button" role="tab">
+                    <i class="bi bi-briefcase"></i> Agent Management
+                </button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -372,6 +405,55 @@
                 </div>
             </div>
             <!-- End User Management Tab -->
+
+            <!-- Agent Management Tab -->
+            <div class="tab-pane fade" id="agentsTab" role="tabpanel">
+                <!-- Action Buttons -->
+                <div class="row mb-3">
+                    <div class="col">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAgentModal">
+                            <i class="bi bi-person-plus"></i> Add New Agent
+                        </button>
+                        <button class="btn btn-outline-secondary ms-2" onclick="refreshAgents()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Agents Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Agents & Site Assignments</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="loading" id="agentsLoading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>CINC ID</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Sites</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="agentsTable">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Agent Management Tab -->
         </div>
         <!-- End Tab Content -->
     </div>
@@ -387,99 +469,271 @@
                 <div class="modal-body">
                     <form id="visitorForm">
                         <div class="row">
+                            <!-- Buyer Information -->
                             <div class="col-md-12 mb-3">
                                 <h6 class="text-muted">Buyer Information</h6>
                             </div>
-                            
+
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Name <span class="text-danger">*</span></label>
+                                <label class="form-label">Name <span class="text-danger">**</span></label>
                                 <input type="text" class="form-control" id="buyerName" required>
                             </div>
-                            
+
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Phone <span class="text-danger">*</span></label>
-                                <input type="tel" class="form-control" id="buyerPhone" required>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Email</label>
+                                <label class="form-label">Email <span class="text-danger" id="emailRequired">*</span></label>
                                 <input type="email" class="form-control" id="buyerEmail">
                             </div>
-                            
+
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Purchase Timeline</label>
+                                <label class="form-label">Cell Phone <span class="text-danger" id="phoneRequired">*</span></label>
+                                <input type="tel" class="form-control" id="buyerPhone">
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">First Visit? <span class="text-danger">**</span></label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="firstVisit" id="firstVisitYes" value="true" checked>
+                                    <label class="btn btn-outline-primary" for="firstVisitYes">Yes</label>
+                                    <input type="radio" class="btn-check" name="firstVisit" id="firstVisitNo" value="false">
+                                    <label class="btn btn-outline-primary" for="firstVisitNo">No</label>
+                                </div>
+                            </div>
+
+                            <!-- Interests -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Interested in (Check all that apply)</label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="Estate" id="intEstate">
+                                            <label class="form-check-label" for="intEstate">Estate</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="Signature" id="intSignature">
+                                            <label class="form-check-label" for="intSignature">Signature</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="TownHome" id="intTownHome">
+                                            <label class="form-check-label" for="intTownHome">TownHome</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Timeline -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Timeline</label>
                                 <select class="form-select" id="purchaseTimeline">
                                     <option value="">Select...</option>
                                     <option value="0-3 months">0-3 months</option>
                                     <option value="3-6 months">3-6 months</option>
                                     <option value="6-12 months">6-12 months</option>
                                     <option value="12+ months">12+ months</option>
-                                    <option value="Just browsing">Just browsing</option>
                                 </select>
                             </div>
-                            
+
+                            <!-- Represented -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Price Range</label>
-                                <select class="form-select" id="priceRange">
-                                    <option value="">Select...</option>
-                                    <option value="Under $200k">Under $200k</option>
-                                    <option value="$200k-$300k">$200k-$300k</option>
-                                    <option value="$300k-$400k">$300k-$400k</option>
-                                    <option value="$400k-$500k">$400k-$500k</option>
-                                    <option value="$500k+">$500k+</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Location Looking</label>
-                                <input type="text" class="form-control" id="locationLooking">
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Current Location</label>
-                                <input type="text" class="form-control" id="locationCurrent">
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Occupation</label>
-                                <input type="text" class="form-control" id="occupation">
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Represented?</label>
-                                <div class="form-check form-switch mt-2">
-                                    <input class="form-check-input" type="checkbox" id="represented">
-                                    <label class="form-check-label" for="represented">Yes</label>
+                                <label class="form-label">Represented? <span class="text-danger">**</span></label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="represented" id="repNo" value="false" checked>
+                                    <label class="btn btn-outline-primary" for="repNo">No</label>
+                                    <input type="radio" class="btn-check" name="represented" id="repYes" value="true">
+                                    <label class="btn btn-outline-primary" for="repYes">Yes</label>
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6 mb-3" id="agentNameDiv" style="display: none;">
-                                <label class="form-label">Agent Name</label>
-                                <input type="text" class="form-control" id="agentName">
+
+                            <!-- Co-broker Name (conditional) -->
+                            <div class="col-md-6 mb-3" id="cobrokerDiv" style="display: none;">
+                                <label class="form-label">Co-broker's Name</label>
+                                <input type="text" class="form-control" id="cobrokerName">
                             </div>
-                            
+
+                            <!-- Location -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Local?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="isLocal" id="localYes" value="true" checked>
+                                    <label class="btn btn-outline-primary" for="localYes">Yes</label>
+                                    <input type="radio" class="btn-check" name="isLocal" id="localNo" value="false">
+                                    <label class="btn btn-outline-primary" for="localNo">No</label>
+                                </div>
+                            </div>
+
+                            <!-- State (conditional) -->
+                            <div class="col-md-6 mb-3" id="stateDiv" style="display: none;">
+                                <label class="form-label">State</label>
+                                <select class="form-select" id="buyerState">
+                                    <option value="">Select state...</option>
+                                    <option value="AL">Alabama</option>
+                                    <option value="AK">Alaska</option>
+                                    <option value="AZ">Arizona</option>
+                                    <option value="AR">Arkansas</option>
+                                    <option value="CA">California</option>
+                                    <option value="CO">Colorado</option>
+                                    <option value="CT">Connecticut</option>
+                                    <option value="DE">Delaware</option>
+                                    <option value="FL">Florida</option>
+                                    <option value="GA">Georgia</option>
+                                    <option value="HI">Hawaii</option>
+                                    <option value="ID">Idaho</option>
+                                    <option value="IL">Illinois</option>
+                                    <option value="IN">Indiana</option>
+                                    <option value="IA">Iowa</option>
+                                    <option value="KS">Kansas</option>
+                                    <option value="KY">Kentucky</option>
+                                    <option value="LA">Louisiana</option>
+                                    <option value="ME">Maine</option>
+                                    <option value="MD">Maryland</option>
+                                    <option value="MA">Massachusetts</option>
+                                    <option value="MI">Michigan</option>
+                                    <option value="MN">Minnesota</option>
+                                    <option value="MS">Mississippi</option>
+                                    <option value="MO">Missouri</option>
+                                    <option value="MT">Montana</option>
+                                    <option value="NE">Nebraska</option>
+                                    <option value="NV">Nevada</option>
+                                    <option value="NH">New Hampshire</option>
+                                    <option value="NJ">New Jersey</option>
+                                    <option value="NM">New Mexico</option>
+                                    <option value="NY">New York</option>
+                                    <option value="NC">North Carolina</option>
+                                    <option value="ND">North Dakota</option>
+                                    <option value="OH">Ohio</option>
+                                    <option value="OK">Oklahoma</option>
+                                    <option value="OR">Oregon</option>
+                                    <option value="PA">Pennsylvania</option>
+                                    <option value="RI">Rhode Island</option>
+                                    <option value="SC">South Carolina</option>
+                                    <option value="SD">South Dakota</option>
+                                    <option value="TN">Tennessee</option>
+                                    <option value="TX">Texas</option>
+                                    <option value="UT">Utah</option>
+                                    <option value="VT">Vermont</option>
+                                    <option value="VA">Virginia</option>
+                                    <option value="WA">Washington</option>
+                                    <option value="WV">West Virginia</option>
+                                    <option value="WI">Wisconsin</option>
+                                    <option value="WY">Wyoming</option>
+                                </select>
+                            </div>
+
+                            <!-- Occupation -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Occupation</label>
+                                <select class="form-select" id="occupation">
+                                    <option value="">Select...</option>
+                                    <option value="Military">Military</option>
+                                    <option value="SRNS (DOE)">SRNS (DOE)</option>
+                                    <option value="Healthcare">Healthcare</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Factory/Distribution">Factory/Distribution</option>
+                                    <option value="Retired">Retired</option>
+                                    <option value="Work from home">Work from home</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <!-- Occupation Other (conditional) -->
+                            <div class="col-md-6 mb-3" id="occupationOtherDiv" style="display: none;">
+                                <label class="form-label">Specify Occupation</label>
+                                <input type="text" class="form-control" id="occupationOther">
+                            </div>
+
+                            <!-- Discovery Method -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">How did buyer find the community?</label>
+                                <select class="form-select" id="discoveryMethod">
+                                    <option value="">Select...</option>
+                                    <option value="BBH website">BBH website</option>
+                                    <option value="BHHS website">BHHS website</option>
+                                    <option value="Zillow/REALTOR.com/Homes.com/similar">Zillow/REALTOR.com/Homes.com/similar</option>
+                                    <option value="Current resident">Current resident</option>
+                                    <option value="Social media">Social media</option>
+                                    <option value="Site agent">Site agent</option>
+                                    <option value="Cobroker">Cobroker</option>
+                                    <option value="Word of Mouth">Word of Mouth</option>
+                                    <option value="Radio/TV ad">Radio/TV ad</option>
+                                    <option value="Signs/Drive by">Signs/Drive by</option>
+                                </select>
+                            </div>
+
+                            <!-- Builder Requested -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Builder Requested (Check all that apply)</label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="Bill Beazley Homes" id="builderBBH">
+                                            <label class="form-check-label" for="builderBBH">Bill Beazley Homes</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="Crawford Construction" id="builderCrawford">
+                                            <label class="form-check-label" for="builderCrawford">Crawford Construction</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="Pierwood Construction" id="builderPierwood">
+                                            <label class="form-check-label" for="builderPierwood">Pierwood Construction</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sales Status -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Offer on the Table?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="offerOnTable" id="offerNo" value="false" checked>
+                                    <label class="btn btn-outline-primary" for="offerNo">No</label>
+                                    <input type="radio" class="btn-check" name="offerOnTable" id="offerYes" value="true">
+                                    <label class="btn btn-outline-primary" for="offerYes">Yes</label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Finalized Contracts?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="finalizedContracts" id="contractsNo" value="false" checked>
+                                    <label class="btn btn-outline-primary" for="contractsNo">No</label>
+                                    <input type="radio" class="btn-check" name="finalizedContracts" id="contractsYes" value="true">
+                                    <label class="btn btn-outline-primary" for="contractsYes">Yes</label>
+                                </div>
+                            </div>
+
+                            <!-- Agent Information -->
                             <div class="col-md-12 mb-3">
                                 <hr>
                                 <h6 class="text-muted">Agent Information</h6>
                             </div>
-                            
+
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Site <span class="text-danger">*</span></label>
+                                <label class="form-label">Site <span class="text-danger">**</span></label>
                                 <select class="form-select" id="site" required>
                                     <option value="">Select site...</option>
                                 </select>
                             </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Capturing Agent <span class="text-danger">*</span></label>
-                                <select class="form-select" id="capturingAgent" required>
+
+                            <!-- Capturing Agent - Only shown for admins/super_admins -->
+                            <div class="col-md-6 mb-3" id="capturingAgentDiv" style="display: none;">
+                                <label class="form-label">Capturing Agent <span class="text-danger">**</span></label>
+                                <select class="form-select" id="capturingAgent">
                                     <option value="">Select agent...</option>
                                 </select>
                             </div>
-                            
+
+                            <!-- Notes -->
                             <div class="col-md-12 mb-3">
-                                <label class="form-label">Initial Notes</label>
-                                <textarea class="form-control" id="notes" rows="3"></textarea>
+                                <label class="form-label">Please enter all relevant notes</label>
+                                <textarea class="form-control" id="notes" rows="4" placeholder="Enter any additional notes about the visitor..."></textarea>
+                                <small class="form-text text-muted">** Always required | * Not required if represented</small>
                             </div>
                         </div>
                     </form>
@@ -627,6 +881,97 @@
     </div>
     </div> <!-- Close mainApp -->
 
+    <!-- Add Agent Modal -->
+    <div class="modal fade" id="addAgentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Agent</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="addAgentForm" onsubmit="handleAddAgent(event)">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="newAgentName" class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="newAgentName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newAgentCincId" class="form-label">CINC ID *</label>
+                            <input type="text" class="form-control" id="newAgentCincId" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newAgentEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="newAgentEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newAgentPhone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="newAgentPhone">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newAgentSites" class="form-label">Sites</label>
+                            <input type="text" class="form-control" id="newAgentSites" placeholder="e.g., Cedar Creek, Willow Ridge">
+                            <div class="form-text">Enter site names separated by commas</div>
+                        </div>
+                        <div id="addAgentError" class="alert alert-danger d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Agent</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Agent Modal -->
+    <div class="modal fade" id="editAgentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Agent</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editAgentForm" onsubmit="handleEditAgent(event)">
+                    <input type="hidden" id="editAgentId">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="editAgentName" class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="editAgentName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentCincId" class="form-label">CINC ID *</label>
+                            <input type="text" class="form-control" id="editAgentCincId" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="editAgentEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentPhone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="editAgentPhone">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAgentSites" class="form-label">Sites</label>
+                            <input type="text" class="form-control" id="editAgentSites" placeholder="e.g., Cedar Creek, Willow Ridge">
+                            <div class="form-text">Enter site names separated by commas</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="editAgentActive">
+                                <label class="form-check-label" for="editAgentActive">Active</label>
+                            </div>
+                        </div>
+                        <div id="editAgentError" class="alert alert-danger d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Confirmation Modal -->
     <div class="modal fade" id="confirmModal" tabindex="-1">
         <div class="modal-dialog">
@@ -650,19 +995,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Configuration - Auto-detect API base URL
-        const API_BASE = (() => {
-            const origin = window.location.origin;
-            const hostname = window.location.hostname;
-
-            // Development (localhost)
-            if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                return 'http://localhost:8000';
-            }
-
-            // Production with nginx proxy
-            return '/api';
-        })();
+        // Configuration - Always use nginx proxy
+        const API_BASE = '/api';
 
         console.log('API_BASE configured as:', API_BASE);
 
@@ -956,15 +1290,24 @@
             document.getElementById('currentUsername').textContent = currentUser.username;
             document.getElementById('userRole').textContent = currentUser.role.toUpperCase();
 
-            // Show user management tab for admins and super_admins
+            // Show user management and agent management tabs for admins and super_admins
             if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
                 document.getElementById('usersTabNav').style.display = 'block';
+                document.getElementById('agentsTabNav').style.display = 'block';
+
+                // Show capturing agent field for admins/super_admins
+                document.getElementById('capturingAgentDiv').style.display = 'block';
+                document.getElementById('capturingAgent').required = true;
 
                 // Show super admin option for super_admins only
                 if (currentUser.role === 'super_admin') {
                     document.getElementById('superAdminOption').style.display = 'block';
                     document.getElementById('editSuperAdminOption').style.display = 'block';
                 }
+            } else {
+                // For regular users, hide capturing agent field
+                document.getElementById('capturingAgentDiv').style.display = 'none';
+                document.getElementById('capturingAgent').required = false;
             }
 
             // Load application data
@@ -995,10 +1338,45 @@
         document.addEventListener('DOMContentLoaded', function() {
             checkAuth();
 
-            // Represented checkbox toggle
-            document.getElementById('represented').addEventListener('change', function() {
-                document.getElementById('agentNameDiv').style.display =
-                    this.checked ? 'block' : 'none';
+            // Represented toggle - show/hide cobroker name and update email/phone requirements
+            const repYes = document.getElementById('repYes');
+            const repNo = document.getElementById('repNo');
+
+            function toggleRepresented() {
+                const isRepresented = document.getElementById('repYes').checked;
+                document.getElementById('cobrokerDiv').style.display = isRepresented ? 'block' : 'none';
+
+                // Update email/phone required indicators
+                const emailRequired = document.getElementById('emailRequired');
+                const phoneRequired = document.getElementById('phoneRequired');
+                if (isRepresented) {
+                    emailRequired.style.display = 'none';
+                    phoneRequired.style.display = 'none';
+                } else {
+                    emailRequired.style.display = 'inline';
+                    phoneRequired.style.display = 'inline';
+                }
+            }
+
+            repYes.addEventListener('change', toggleRepresented);
+            repNo.addEventListener('change', toggleRepresented);
+
+            // Local toggle - show/hide state selector
+            const localYes = document.getElementById('localYes');
+            const localNo = document.getElementById('localNo');
+
+            function toggleLocal() {
+                const isLocal = document.getElementById('localYes').checked;
+                document.getElementById('stateDiv').style.display = isLocal ? 'none' : 'block';
+            }
+
+            localYes.addEventListener('change', toggleLocal);
+            localNo.addEventListener('change', toggleLocal);
+
+            // Occupation change - show/hide "other" input
+            document.getElementById('occupation').addEventListener('change', function() {
+                document.getElementById('occupationOtherDiv').style.display =
+                    this.value === 'Other' ? 'block' : 'none';
             });
 
             // Site filter change
@@ -1185,24 +1563,77 @@
                 return;
             }
 
+            // Collect checkbox values for interests
+            const interests = [];
+            if (document.getElementById('intEstate').checked) interests.push('Estate');
+            if (document.getElementById('intSignature').checked) interests.push('Signature');
+            if (document.getElementById('intTownHome').checked) interests.push('TownHome');
+
+            // Collect checkbox values for builders
+            const builders = [];
+            if (document.getElementById('builderBBH').checked) builders.push('Bill Beazley Homes');
+            if (document.getElementById('builderCrawford').checked) builders.push('Crawford Construction');
+            if (document.getElementById('builderPierwood').checked) builders.push('Pierwood Construction');
+
+            // Get radio button values
+            const firstVisit = document.querySelector('input[name="firstVisit"]:checked').value === 'true';
+            const represented = document.querySelector('input[name="represented"]:checked').value === 'true';
+            const isLocal = document.querySelector('input[name="isLocal"]:checked').value === 'true';
+            const offerOnTable = document.querySelector('input[name="offerOnTable"]:checked').value === 'true';
+            const finalizedContracts = document.querySelector('input[name="finalizedContracts"]:checked').value === 'true';
+
             setButtonLoading(submitBtn, true);
 
             const payload = {
+                // Required fields
                 buyer_name: document.getElementById('buyerName').value,
-                buyer_phone: document.getElementById('buyerPhone').value,
-                buyer_email: document.getElementById('buyerEmail').value || null,
-                purchase_timeline: document.getElementById('purchaseTimeline').value || null,
-                price_range: document.getElementById('priceRange').value || null,
-                location_looking: document.getElementById('locationLooking').value || null,
-                location_current: document.getElementById('locationCurrent').value || null,
-                occupation: document.getElementById('occupation').value || null,
-                represented: document.getElementById('represented').checked,
-                agent_name: document.getElementById('agentName').value || null,
-                capturing_agent_id: parseInt(document.getElementById('capturingAgent').value),
+                first_visit: firstVisit,
+                represented: represented,
                 site: document.getElementById('site').value,
+
+                // Conditionally required fields
+                buyer_email: document.getElementById('buyerEmail').value || null,
+                buyer_phone: document.getElementById('buyerPhone').value || null,
+
+                // Interests
+                interested_in: interests.length > 0 ? interests : null,
+
+                // Timeline
+                purchase_timeline: document.getElementById('purchaseTimeline').value || null,
+
+                // Representation
+                cobroker_name: document.getElementById('cobrokerName').value || null,
+
+                // Location
+                is_local: isLocal,
+                buyer_state: document.getElementById('buyerState').value || null,
+
+                // Occupation
+                occupation: document.getElementById('occupation').value || null,
+                occupation_other: document.getElementById('occupationOther').value || null,
+
+                // Discovery
+                discovery_method: document.getElementById('discoveryMethod').value || null,
+
+                // Builders
+                builders_requested: builders.length > 0 ? builders : null,
+
+                // Sales status
+                offer_on_table: offerOnTable,
+                finalized_contracts: finalizedContracts,
+
+                // Notes
                 notes: document.getElementById('notes').value || null
             };
-            
+
+            // Add capturing_agent_id only for admins/super_admins
+            if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
+                const capturingAgentValue = document.getElementById('capturingAgent').value;
+                if (capturingAgentValue) {
+                    payload.capturing_agent_id = parseInt(capturingAgentValue);
+                }
+            }
+
             try {
                 const response = await fetch(`${API_BASE}/visitors`, {
                     method: 'POST',
@@ -1867,6 +2298,312 @@
                 });
             });
         }
+
+        // ============================================
+        // AGENT MANAGEMENT FUNCTIONS
+        // ============================================
+
+        let allSites = [];
+
+        // Load agents
+        async function loadAgents() {
+            try {
+                document.getElementById('agentsLoading').style.display = 'block';
+
+                const response = await fetch(`${API_BASE}/agents`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to load agents');
+                }
+
+                const data = await response.json();
+                renderAgentsTable(data.agents);
+
+                document.getElementById('agentsLoading').style.display = 'none';
+            } catch (error) {
+                console.error('Error loading agents:', error);
+                document.getElementById('agentsLoading').style.display = 'none';
+                await handleApiError(error, 'Failed to load agents');
+            }
+        }
+
+        // Load all sites for the site checkboxes
+        async function loadSites() {
+            try {
+                const response = await fetch(`${API_BASE}/sites`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load sites');
+                }
+
+                const data = await response.json();
+                allSites = data.sites;
+
+            } catch (error) {
+                console.error('Error loading sites:', error);
+            }
+        }
+
+        // Render agents table
+        function renderAgentsTable(agentsList) {
+            const tbody = document.getElementById('agentsTable');
+            tbody.innerHTML = '';
+
+            if (!agentsList || agentsList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No agents found</td></tr>';
+                return;
+            }
+
+            agentsList.forEach(agent => {
+                const row = document.createElement('tr');
+
+                // Format sites as badges
+                const siteBadges = (agent.sites && agent.sites.length > 0)
+                    ? agent.sites.map(site => `<span class="badge bg-secondary me-1">${site}</span>`).join('')
+                    : '<span class="text-muted">No sites assigned</span>';
+
+                const statusBadge = agent.active
+                    ? '<span class="badge bg-success">Active</span>'
+                    : '<span class="badge bg-secondary">Inactive</span>';
+
+                row.innerHTML = `
+                    <td>${agent.id}</td>
+                    <td>${agent.name || ''}</td>
+                    <td>${agent.cinc_id || ''}</td>
+                    <td>${agent.email || ''}</td>
+                    <td>${agent.phone || ''}</td>
+                    <td>${siteBadges}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editAgent(${agent.id})">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Refresh agents
+        function refreshAgents() {
+            loadAgents();
+        }
+
+        // Parse sites from comma-separated input
+        function parseSitesInput(inputValue) {
+            if (!inputValue || inputValue.trim() === '') {
+                return [];
+            }
+            return inputValue.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+
+        // Handle add agent
+        async function handleAddAgent(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('newAgentName').value.trim();
+            const cincId = document.getElementById('newAgentCincId').value.trim();
+            const email = document.getElementById('newAgentEmail').value.trim() || null;
+            const phone = document.getElementById('newAgentPhone').value.trim() || null;
+            const sitesInput = document.getElementById('newAgentSites').value;
+            const sites = parseSitesInput(sitesInput);
+
+            const payload = {
+                name,
+                cinc_id: cincId,
+                email,
+                phone,
+                sites
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/agents`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    let errorMessage = 'Failed to create agent';
+
+                    if (errorData.detail) {
+                        if (Array.isArray(errorData.detail)) {
+                            errorMessage = errorData.detail.map(e => {
+                                const field = e.loc[e.loc.length - 1];
+                                return `${field}: ${e.msg}`;
+                            }).join('; ');
+                        } else {
+                            errorMessage = errorData.detail;
+                        }
+                    }
+
+                    throw new Error(errorMessage);
+                }
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addAgentModal'));
+                modal.hide();
+
+                // Reset form
+                document.getElementById('addAgentForm').reset();
+                document.getElementById('addAgentError').classList.add('d-none');
+
+                // Refresh agents and sites
+                await loadSites();
+                loadAgents();
+
+                showToast('Agent created successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error creating agent:', error);
+                const message = error.message || 'Failed to create agent';
+                showToast(message, 'error');
+                document.getElementById('addAgentError').textContent = message;
+                document.getElementById('addAgentError').classList.remove('d-none');
+            }
+        }
+
+        // Edit agent
+        async function editAgent(agentId) {
+            try {
+                // Fetch agent details
+                const response = await fetch(`${API_BASE}/agents`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to load agent details');
+                }
+
+                const data = await response.json();
+                const agent = data.agents.find(a => a.id === agentId);
+
+                if (!agent) {
+                    throw new Error('Agent not found');
+                }
+
+                // Populate form
+                document.getElementById('editAgentId').value = agent.id;
+                document.getElementById('editAgentName').value = agent.name;
+                document.getElementById('editAgentCincId').value = agent.cinc_id;
+                document.getElementById('editAgentEmail').value = agent.email || '';
+                document.getElementById('editAgentPhone').value = agent.phone || '';
+                document.getElementById('editAgentActive').checked = agent.active;
+
+                // Populate sites as comma-separated string
+                const sitesString = (agent.sites && agent.sites.length > 0) ? agent.sites.join(', ') : '';
+                document.getElementById('editAgentSites').value = sitesString;
+
+                // Reset error
+                document.getElementById('editAgentError').classList.add('d-none');
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('editAgentModal'));
+                modal.show();
+
+            } catch (error) {
+                console.error('Error loading agent details:', error);
+                await handleApiError(error, 'Failed to load agent details');
+            }
+        }
+
+        // Handle edit agent
+        async function handleEditAgent(event) {
+            event.preventDefault();
+
+            const agentId = document.getElementById('editAgentId').value;
+            const name = document.getElementById('editAgentName').value.trim();
+            const cincId = document.getElementById('editAgentCincId').value.trim();
+            const email = document.getElementById('editAgentEmail').value.trim() || null;
+            const phone = document.getElementById('editAgentPhone').value.trim() || null;
+            const active = document.getElementById('editAgentActive').checked;
+            const sitesInput = document.getElementById('editAgentSites').value;
+            const sites = parseSitesInput(sitesInput);
+
+            const payload = {
+                name,
+                cinc_id: cincId,
+                email,
+                phone,
+                active,
+                sites
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/agents/${agentId}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    let errorMessage = 'Failed to update agent';
+
+                    if (errorData.detail) {
+                        if (Array.isArray(errorData.detail)) {
+                            errorMessage = errorData.detail.map(e => {
+                                const field = e.loc[e.loc.length - 1];
+                                return `${field}: ${e.msg}`;
+                            }).join('; ');
+                        } else {
+                            errorMessage = errorData.detail;
+                        }
+                    }
+
+                    throw new Error(errorMessage);
+                }
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editAgentModal'));
+                modal.hide();
+
+                // Reset error
+                document.getElementById('editAgentError').classList.add('d-none');
+
+                // Refresh agents and sites
+                await loadSites();
+                loadAgents();
+
+                showToast('Agent updated successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error updating agent:', error);
+                const message = error.message || 'Failed to update agent';
+                showToast(message, 'error');
+                document.getElementById('editAgentError').textContent = message;
+                document.getElementById('editAgentError').classList.remove('d-none');
+            }
+        }
+
+        // ============================================
+        // END AGENT MANAGEMENT FUNCTIONS
+        // ============================================
     </script>
 </body>
 </html>

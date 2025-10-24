@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, validator, root_validator
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -77,7 +77,28 @@ class PurchaseTimeline(str, Enum):
     THREE_TO_SIX = "3-6 months"
     SIX_TO_TWELVE = "6-12 months"
     TWELVE_PLUS = "12+ months"
-    BROWSING = "Just browsing"
+
+class Occupation(str, Enum):
+    MILITARY = "Military"
+    SRNS = "SRNS (DOE)"
+    HEALTHCARE = "Healthcare"
+    EDUCATION = "Education"
+    FACTORY = "Factory/Distribution"
+    RETIRED = "Retired"
+    WORK_FROM_HOME = "Work from home"
+    OTHER = "Other"
+
+class DiscoveryMethod(str, Enum):
+    BBH_WEBSITE = "BBH website"
+    BHHS_WEBSITE = "BHHS website"
+    ZILLOW_REALTOR = "Zillow/REALTOR.com/Homes.com/similar"
+    CURRENT_RESIDENT = "Current resident"
+    SOCIAL_MEDIA = "Social media"
+    SITE_AGENT = "Site agent"
+    COBROKER = "Cobroker"
+    WORD_OF_MOUTH = "Word of Mouth"
+    RADIO_TV = "Radio/TV ad"
+    SIGNS_DRIVE_BY = "Signs/Drive by"
 
 class PriceRange(str, Enum):
     UNDER_200K = "Under $200k"
@@ -176,19 +197,52 @@ class UserUpdate(BaseModel):
         return v
 
 class VisitorCreate(BaseModel):
+    # Required fields (always)
     buyer_name: str = Field(..., min_length=2, max_length=255)
-    buyer_phone: str = Field(..., min_length=10, max_length=20)
+    first_visit: bool = Field(...)
+    represented: bool = Field(...)
+    capturing_agent_id: Optional[int] = Field(None, gt=0)  # Optional - will be set from user's agent_id if not provided
+    site: str = Field(..., min_length=1, max_length=100)
+
+    # Conditionally required (*not required if represented)
     buyer_email: Optional[EmailStr] = None
+    buyer_phone: Optional[str] = Field(None, min_length=10, max_length=20)
+
+    # Interests (multiple selection)
+    interested_in: Optional[List[str]] = None  # ["Estate", "Signature", "TownHome"]
+
+    # Timeline
     purchase_timeline: Optional[PurchaseTimeline] = None
+
+    # Representation details
+    cobroker_name: Optional[str] = Field(None, max_length=255)
+
+    # Location
+    is_local: Optional[bool] = True
+    buyer_state: Optional[str] = Field(None, max_length=50)
+
+    # Occupation
+    occupation: Optional[Occupation] = None
+    occupation_other: Optional[str] = Field(None, max_length=100)
+
+    # Discovery method
+    discovery_method: Optional[DiscoveryMethod] = None
+
+    # Builder preferences (multiple selection)
+    builders_requested: Optional[List[str]] = None  # ["Bill Beazley Homes", "Crawford Construction", "Pierwood Construction"]
+
+    # Sales status (updateable)
+    offer_on_table: bool = False
+    finalized_contracts: bool = False
+
+    # Notes (updateable)
+    notes: Optional[str] = Field(None, max_length=5000)
+
+    # Legacy fields (keeping for backward compatibility)
     price_range: Optional[PriceRange] = None
     location_looking: Optional[str] = Field(None, max_length=255)
     location_current: Optional[str] = Field(None, max_length=255)
-    occupation: Optional[str] = Field(None, max_length=100)
-    represented: bool = False
     agent_name: Optional[str] = Field(None, max_length=255)
-    capturing_agent_id: int = Field(..., gt=0)
-    site: str = Field(..., min_length=1, max_length=100)
-    notes: Optional[str] = Field(None, max_length=2000)
 
     @validator('buyer_name')
     def validate_buyer_name(cls, v):
@@ -196,9 +250,56 @@ class VisitorCreate(BaseModel):
 
     @validator('buyer_phone')
     def validate_buyer_phone(cls, v):
-        return validate_phone_number(v)
+        if v:
+            return validate_phone_number(v)
+        return v
 
-    @validator('location_looking', 'location_current', 'occupation', 'agent_name', 'site')
+    @root_validator(skip_on_failure=True)
+    def validate_conditional_fields(cls, values):
+        """Validate conditional requirements based on represented status"""
+        represented = values.get('represented', False)
+
+        # If not represented, email and phone are required
+        if not represented:
+            if not values.get('buyer_email') and not values.get('buyer_phone'):
+                raise ValueError('Either email or phone is required when buyer is not represented')
+
+        # If represented, cobroker_name should be provided
+        # (optional validation - can be added later)
+
+        # If not local, buyer_state should be provided
+        is_local = values.get('is_local', True)
+        if not is_local and not values.get('buyer_state'):
+            raise ValueError('State is required when buyer is not local')
+
+        # If occupation is "Other", occupation_other should be provided
+        occupation = values.get('occupation')
+        if occupation == Occupation.OTHER and not values.get('occupation_other'):
+            raise ValueError('Please specify occupation when "Other" is selected')
+
+        return values
+
+    @validator('interested_in')
+    def validate_interested_in(cls, v):
+        """Validate interested_in list"""
+        if v:
+            valid_options = ["Estate", "Signature", "TownHome"]
+            for item in v:
+                if item not in valid_options:
+                    raise ValueError(f'Invalid interest option: {item}')
+        return v
+
+    @validator('builders_requested')
+    def validate_builders(cls, v):
+        """Validate builders_requested list"""
+        if v:
+            valid_builders = ["Bill Beazley Homes", "Crawford Construction", "Pierwood Construction"]
+            for item in v:
+                if item not in valid_builders:
+                    raise ValueError(f'Invalid builder option: {item}')
+        return v
+
+    @validator('location_looking', 'location_current', 'agent_name', 'site', 'cobroker_name', 'buyer_state', 'occupation_other')
     def validate_strings(cls, v):
         if v is None:
             return v
@@ -208,7 +309,7 @@ class VisitorCreate(BaseModel):
     def validate_notes(cls, v):
         if v is None:
             return v
-        return sanitize_string(v, 2000)
+        return sanitize_string(v, 5000)
 
 class NoteCreate(BaseModel):
     visitor_id: int = Field(..., gt=0)
@@ -235,6 +336,23 @@ class AgentCreate(BaseModel):
         if v is None:
             return v
         return validate_phone_number(v)
+
+class AgentCreateNew(BaseModel):
+    """Model for creating agents with many-to-many site relationships"""
+    name: str = Field(..., min_length=2, max_length=255)
+    cinc_id: str = Field(..., min_length=1, max_length=50)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, max_length=20)
+    sites: Optional[List[str]] = []
+
+class AgentUpdate(BaseModel):
+    """Model for updating agents"""
+    name: Optional[str] = Field(None, min_length=2, max_length=255)
+    cinc_id: Optional[str] = Field(None, min_length=1, max_length=50)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, max_length=20)
+    sites: Optional[List[str]] = None
+    active: Optional[bool] = None
 
 class PaginatedResponse(BaseModel):
     """Generic paginated response"""
@@ -359,14 +477,14 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
         first_name = name_parts[0] if name_parts else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
 
-        # Prepare payload for Zapier
+        # Prepare comprehensive payload for Zapier
         payload = {
             # Buyer Information
             "firstName": first_name,
             "lastName": last_name,
             "fullName": visitor_data["buyer_name"],
             "email": visitor_data.get("buyer_email", ""),
-            "phone": visitor_data["buyer_phone"],
+            "phone": visitor_data.get("buyer_phone", ""),
 
             # Agent Information
             "agentName": agent_data.get("name", ""),
@@ -374,18 +492,46 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
             "agentCincId": agent_data.get("cinc_id", ""),
             "site": visitor_data["site"],
 
-            # Lead Details
+            # Visit Information
+            "firstVisit": "Yes" if visitor_data.get("first_visit") else "No",
+            "interestedIn": visitor_data.get("interested_in", []),
+
+            # Timeline & Details
             "purchaseTimeline": visitor_data.get("purchase_timeline", ""),
             "priceRange": visitor_data.get("price_range", ""),
+
+            # Representation
+            "represented": "Yes" if visitor_data.get("represented") else "No",
+            "cobrokerName": visitor_data.get("cobroker_name", ""),
+
+            # Location
+            "isLocal": "Yes" if visitor_data.get("is_local") else "No",
+            "buyerState": visitor_data.get("buyer_state", ""),
+
+            # Occupation
+            "occupation": visitor_data.get("occupation", ""),
+            "occupationOther": visitor_data.get("occupation_other", ""),
+
+            # Discovery
+            "discoveryMethod": visitor_data.get("discovery_method", ""),
+
+            # Builder Preferences
+            "buildersRequested": visitor_data.get("builders_requested", []),
+
+            # Sales Status
+            "offerOnTable": "Yes" if visitor_data.get("offer_on_table") else "No",
+            "finalizedContracts": "Yes" if visitor_data.get("finalized_contracts") else "No",
+
+            # Notes
+            "notes": visitor_data.get("notes", ""),
+
+            # Legacy Fields (for backward compatibility)
             "locationLooking": visitor_data.get("location_looking", ""),
             "locationCurrent": visitor_data.get("location_current", ""),
-            "occupation": visitor_data.get("occupation", ""),
-            "represented": "Yes" if visitor_data.get("represented") else "No",
             "representingAgent": visitor_data.get("agent_name", ""),
 
             # Metadata
             "source": "New Homes Lead Tracker",
-            "notes": visitor_data.get("notes", ""),
             "timestamp": datetime.now().isoformat(),
             "visitDate": visitor_data.get("created_at", datetime.now().isoformat())
         }
@@ -579,37 +725,60 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
     with get_db() as conn:
         cursor = conn.cursor()
 
+        # Determine capturing_agent_id based on user role
+        if visitor.capturing_agent_id:
+            # If capturing_agent_id is provided (admin/super_admin selecting agent)
+            capturing_agent_id = visitor.capturing_agent_id
+        else:
+            # For regular users, use their linked agent_id
+            if not current_user.agent_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Your user account is not linked to an agent. Please contact an administrator."
+                )
+            capturing_agent_id = current_user.agent_id
+
         # Get agent information
         agent = cursor.execute(
             "SELECT id, name, cinc_id, email FROM agents WHERE id = ?",
-            (visitor.capturing_agent_id,)
+            (capturing_agent_id,)
         ).fetchone()
 
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        # Insert visitor
+        # Convert lists to comma-separated strings for storage
+        interested_in_str = ",".join(visitor.interested_in) if visitor.interested_in else None
+        builders_requested_str = ",".join(visitor.builders_requested) if visitor.builders_requested else None
+
+        # Convert enum values to strings
+        occupation_str = visitor.occupation.value if visitor.occupation else None
+        timeline_str = visitor.purchase_timeline.value if visitor.purchase_timeline else None
+        discovery_str = visitor.discovery_method.value if visitor.discovery_method else None
+        price_range_str = visitor.price_range.value if visitor.price_range else None
+
+        # Insert visitor with all new fields
         cursor.execute("""
             INSERT INTO visitors (
-                buyer_name, buyer_phone, buyer_email, purchase_timeline,
-                price_range, location_looking, location_current, occupation,
-                represented, agent_name, capturing_agent_id, site
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                buyer_name, buyer_phone, buyer_email, first_visit,
+                interested_in, purchase_timeline, represented, cobroker_name,
+                is_local, buyer_state, occupation, occupation_other,
+                discovery_method, builders_requested, offer_on_table,
+                finalized_contracts, notes, price_range, location_looking,
+                location_current, agent_name, capturing_agent_id, site
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             visitor.buyer_name, visitor.buyer_phone, visitor.buyer_email,
-            visitor.purchase_timeline, visitor.price_range, visitor.location_looking,
-            visitor.location_current, visitor.occupation, visitor.represented,
-            visitor.agent_name, visitor.capturing_agent_id, visitor.site
+            visitor.first_visit, interested_in_str, timeline_str,
+            visitor.represented, visitor.cobroker_name, visitor.is_local,
+            visitor.buyer_state, occupation_str, visitor.occupation_other,
+            discovery_str, builders_requested_str, visitor.offer_on_table,
+            visitor.finalized_contracts, visitor.notes, price_range_str,
+            visitor.location_looking, visitor.location_current,
+            visitor.agent_name, capturing_agent_id, visitor.site
         ))
 
         visitor_id = cursor.lastrowid
-
-        # Add initial note if provided
-        if visitor.notes:
-            cursor.execute("""
-                INSERT INTO visitor_notes (visitor_id, agent_id, note)
-                VALUES (?, ?, ?)
-            """, (visitor_id, visitor.capturing_agent_id, visitor.notes))
 
         # Sync to Zapier webhook
         visitor_dict = visitor.dict()
@@ -914,46 +1083,178 @@ def export_visitors_csv(site: Optional[str] = None, current_user: UserInDB = Dep
         )
 
 # Agent Management
-@app.post("/agents")
-def create_agent(agent: AgentCreate):
-    """Create new agent"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute("""
-                INSERT INTO agents (name, cinc_id, site, email, phone)
-                VALUES (?, ?, ?, ?, ?)
-            """, (agent.name, agent.cinc_id, agent.site, agent.email, agent.phone))
-            
-            return {"id": cursor.lastrowid}
-        except sqlite3.IntegrityError:
-            raise HTTPException(status_code=400, detail="Agent already exists for this site")
-
 @app.get("/agents")
-def list_agents(site: Optional[str] = None):
-    """List all agents"""
+def list_agents(site: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
+    """List all agents with their site assignments"""
     with get_db() as conn:
         cursor = conn.cursor()
-        
+
+        # Get agents with site counts
         if site:
-            agents = cursor.execute(
-                "SELECT * FROM agents WHERE site = ? AND active = 1 ORDER BY name",
-                (site,)
-            ).fetchall()
+            # Get agents assigned to specific site
+            agents = cursor.execute("""
+                SELECT DISTINCT a.*
+                FROM agents a
+                JOIN agent_sites ags ON a.id = ags.agent_id
+                WHERE ags.site = ? AND a.active = 1
+                ORDER BY a.name
+            """, (site,)).fetchall()
         else:
             agents = cursor.execute(
                 "SELECT * FROM agents WHERE active = 1 ORDER BY name"
             ).fetchall()
-        
-        return {"agents": [dict(a) for a in agents]}
+
+        # Get sites for each agent
+        agents_with_sites = []
+        for agent in agents:
+            sites = cursor.execute(
+                "SELECT site FROM agent_sites WHERE agent_id = ? ORDER BY site",
+                (agent["id"],)
+            ).fetchall()
+
+            agent_dict = dict(agent)
+            agent_dict["sites"] = [s["site"] for s in sites]
+            agents_with_sites.append(agent_dict)
+
+        return {"agents": agents_with_sites}
+
+@app.put("/agents/{agent_id}")
+def update_agent(
+    agent_id: int,
+    agent_data: AgentUpdate,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Update agent details and site assignments (admin only)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Check if agent exists
+        agent = cursor.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        # Build update query dynamically
+        updates = []
+        params = []
+
+        if agent_data.name is not None:
+            updates.append("name = ?")
+            params.append(agent_data.name)
+        if agent_data.cinc_id is not None:
+            updates.append("cinc_id = ?")
+            params.append(agent_data.cinc_id)
+        if agent_data.email is not None:
+            updates.append("email = ?")
+            params.append(agent_data.email)
+        if agent_data.phone is not None:
+            updates.append("phone = ?")
+            params.append(agent_data.phone)
+        if agent_data.active is not None:
+            updates.append("active = ?")
+            params.append(1 if agent_data.active else 0)
+
+        # Update agent details if any fields provided
+        if updates:
+            params.append(agent_id)
+            cursor.execute(
+                f"UPDATE agents SET {', '.join(updates)} WHERE id = ?",
+                params
+            )
+
+        # Update site assignments if provided
+        if agent_data.sites is not None:
+            # Clear existing site assignments
+            cursor.execute("DELETE FROM agent_sites WHERE agent_id = ?", (agent_id,))
+
+            # Add new site assignments
+            for site in agent_data.sites:
+                cursor.execute(
+                    "INSERT OR IGNORE INTO agent_sites (agent_id, site) VALUES (?, ?)",
+                    (agent_id, site)
+                )
+
+        conn.commit()
+
+        # Return updated agent with sites
+        updated_agent = cursor.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
+        agent_sites = cursor.execute(
+            "SELECT site FROM agent_sites WHERE agent_id = ? ORDER BY site",
+            (agent_id,)
+        ).fetchall()
+
+        result = dict(updated_agent)
+        result["sites"] = [s["site"] for s in agent_sites]
+
+        return result
+
+@app.post("/agents")
+def create_agent(
+    agent_data: AgentCreateNew,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Create new agent with site assignments (admin only)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        try:
+            # Insert agent
+            cursor.execute(
+                "INSERT INTO agents (name, cinc_id, email, phone) VALUES (?, ?, ?, ?)",
+                (agent_data.name, agent_data.cinc_id, agent_data.email, agent_data.phone)
+            )
+            agent_id = cursor.lastrowid
+
+            # Add site assignments
+            if agent_data.sites:
+                for site in agent_data.sites:
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO agent_sites (agent_id, site) VALUES (?, ?)",
+                        (agent_id, site)
+                    )
+
+            conn.commit()
+
+            # Return created agent with sites
+            agent = cursor.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
+            agent_sites = cursor.execute(
+                "SELECT site FROM agent_sites WHERE agent_id = ? ORDER BY site",
+                (agent_id,)
+            ).fetchall()
+
+            result = dict(agent)
+            result["sites"] = [s["site"] for s in agent_sites]
+
+            return result
+
+        except sqlite3.IntegrityError as e:
+            raise HTTPException(status_code=400, detail=f"Agent already exists: {str(e)}")
+
+@app.delete("/agents/{agent_id}")
+def deactivate_agent(
+    agent_id: int,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Deactivate agent (admin only) - soft delete"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Check if agent exists
+        agent = cursor.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        # Soft delete by setting active = 0
+        cursor.execute("UPDATE agents SET active = 0 WHERE id = ?", (agent_id,))
+        conn.commit()
+
+        return {"message": "Agent deactivated successfully"}
 
 @app.get("/sites")
 def list_sites():
     """Get unique list of sites/communities"""
     with get_db() as conn:
         cursor = conn.cursor()
-        sites = cursor.execute("SELECT DISTINCT site FROM agents ORDER BY site").fetchall()
+        sites = cursor.execute("SELECT DISTINCT site FROM agent_sites ORDER BY site").fetchall()
         return {"sites": [s["site"] for s in sites]}
 
 @app.get("/stats")

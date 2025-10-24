@@ -20,7 +20,7 @@ services:
       - WORKSHEET_NAME=${WORKSHEET_NAME:-Sheet1}
     volumes:
       - ./data:/data
-      - ./schema.sql:/app/schema.sql
+      - ./backend/schema.sql:/app/schema.sql
       - ./credentials.json:/credentials.json:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
@@ -37,9 +37,8 @@ services:
     ports:
       - "8087:80"
     volumes:
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-      - ./analytics.html:/usr/share/nginx/html/analytics.html:ro
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - api
     networks:
