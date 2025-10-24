@@ -46,3 +46,13 @@ logs/
 
 # Claude backup
 CLAUDE.md.backup
+
+
+# Images
+images/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
