@@ -998,8 +998,6 @@
         // Configuration - Always use nginx proxy
         const API_BASE = '/api';
 
-        console.log('API_BASE configured as:', API_BASE);
-
         let currentVisitorId = null;
         let agents = [];
         let sites = [];
@@ -1435,10 +1433,6 @@
                 }
                 const data = await response.json();
                 agents = data.agents;
-                console.log('Agents loaded from API:', agents.length);
-                console.log('First agent:', agents[0]);
-                console.log('First agent sites type:', typeof agents[0]?.sites);
-                console.log('First agent sites value:', agents[0]?.sites);
             } catch (error) {
                 console.error('Error loading agents:', error);
             }
@@ -1446,20 +1440,12 @@
 
         // Filter agents by site
         function filterAgentsBySite(site) {
-            console.log('filterAgentsBySite called with site:', site);
-            console.log('Total agents loaded:', agents.length);
-
             const agentSelect = document.getElementById('capturingAgent');
             agentSelect.innerHTML = '<option value="">Select agent...</option>';
 
             const filteredAgents = site
-                ? agents.filter(a => {
-                    console.log(`Agent ${a.name}: sites =`, a.sites, `, includes(${site})?`, a.sites && a.sites.includes(site));
-                    return a.sites && a.sites.includes(site);
-                  })
+                ? agents.filter(a => a.sites && a.sites.includes(site))
                 : agents;
-
-            console.log('Filtered agents count:', filteredAgents.length);
 
             filteredAgents.forEach(agent => {
                 const option = document.createElement('option');

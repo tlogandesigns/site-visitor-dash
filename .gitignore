@@ -56,3 +56,5 @@ images/
 *.gif
 *.svg
 *.ico
+
+.DS_Store
