@@ -1401,16 +1401,25 @@
                 }
                 const data = await response.json();
                 sites = data.sites;
-                
+
                 const siteFilter = document.getElementById('siteFilter');
                 const siteSelect = document.getElementById('site');
-                
+
+                // Clear existing options except the first (placeholder)
+                while (siteFilter.options.length > 1) {
+                    siteFilter.remove(1);
+                }
+                while (siteSelect.options.length > 1) {
+                    siteSelect.remove(1);
+                }
+
+                // Add sites
                 sites.forEach(site => {
                     const option1 = document.createElement('option');
                     option1.value = site;
                     option1.textContent = site;
                     siteFilter.appendChild(option1);
-                    
+
                     const option2 = document.createElement('option');
                     option2.value = site;
                     option2.textContent = site;
@@ -2309,8 +2318,8 @@
 
         let allSites = [];
 
-        // Load agents
-        async function loadAgents() {
+        // Load agents table for management view
+        async function loadAgentsTable() {
             try {
                 document.getElementById('agentsLoading').style.display = 'block';
 
@@ -2339,7 +2348,7 @@
         }
 
         // Load all sites for the site checkboxes
-        async function loadSites() {
+        async function loadAgentSites() {
             try {
                 const response = await fetch(`${API_BASE}/sites`, {
                     headers: getAuthHeaders()
@@ -2399,7 +2408,7 @@
 
         // Refresh agents
         function refreshAgents() {
-            loadAgents();
+            loadAgentsTable();
         }
 
         // Parse sites from comma-separated input
@@ -2468,8 +2477,10 @@
                 document.getElementById('addAgentError').classList.add('d-none');
 
                 // Refresh agents and sites
-                await loadSites();
-                loadAgents();
+                await loadSites();           // refresh visitor form dropdowns
+                await loadAgents();          // refresh agent list for dropdowns
+                await loadAgentSites();      // refresh management site cache
+                loadAgentsTable();           // refresh management table
 
                 showToast('Agent created successfully!', 'success');
 
@@ -2591,8 +2602,10 @@
                 document.getElementById('editAgentError').classList.add('d-none');
 
                 // Refresh agents and sites
-                await loadSites();
-                loadAgents();
+                await loadSites();           // refresh visitor form dropdowns
+                await loadAgents();          // refresh agent list for dropdowns
+                await loadAgentSites();      // refresh management site cache
+                loadAgentsTable();           // refresh management table
 
                 showToast('Agent updated successfully!', 'success');
 
