@@ -228,10 +228,52 @@
                 </div>
             </div>
         </div>
+
+        <!-- Printable Report -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-printer"></i> Printable Visitor Report
+                            </h5>
+                            <span class="text-muted small">Generate a date-bound summary for all communities.</span>
+                        </div>
+                        <div id="reportError" class="alert alert-danger d-none" role="alert"></div>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label for="reportStartDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="reportStartDate">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="reportEndDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="reportEndDate">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label d-block">Actions</label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-secondary" onclick="resetReportForm()">
+                                        <i class="bi bi-x-circle"></i> Clear
+                                    </button>
+                                    <button class="btn btn-primary" onclick="generatePrintableReport()">
+                                        <i class="bi bi-file-earmark-pdf"></i> Download PDF Report
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    Report data respects role visibility and includes all sites plus per-site detail.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script>
         // API Configuration
@@ -645,6 +687,394 @@
                     </div>
                 </div>
             `;
+        }
+
+        function resetReportForm() {
+            document.getElementById('reportStartDate').value = '';
+            document.getElementById('reportEndDate').value = '';
+            setReportError(null);
+        }
+
+        function setReportError(message) {
+            const errorDiv = document.getElementById('reportError');
+            if (!errorDiv) {
+                return;
+            }
+
+            if (message) {
+                errorDiv.textContent = message;
+                errorDiv.classList.remove('d-none');
+            } else {
+                errorDiv.textContent = '';
+                errorDiv.classList.add('d-none');
+            }
+        }
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatDateForReport(value) {
+            if (!value) return '';
+            return value.replace('T', ' ');
+        }
+
+        function renderBreakdownList(items) {
+            if (!items || items.length === 0) {
+                return '<p class="muted">No data</p>';
+            }
+
+            return `
+                <ul class="breakdown-list">
+                    ${items.map(item => `
+                        <li>
+                            <span class="label">${escapeHtml(item.label)}</span>
+                            <span class="value">${item.count}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+        }
+
+        async function generatePrintableReport() {
+            const start = document.getElementById('reportStartDate').value;
+            const end = document.getElementById('reportEndDate').value;
+            const overlay = document.getElementById('loadingOverlay');
+
+            setReportError(null);
+
+            if (!start || !end) {
+                setReportError('Please select both a start and end date.');
+                return;
+            }
+
+            if (end < start) {
+                setReportError('End date cannot be earlier than start date.');
+                return;
+            }
+
+            if (typeof html2pdf === 'undefined') {
+                setReportError('PDF generator failed to load. Check your network connection and try again.');
+                return;
+            }
+
+            overlay.classList.add('active');
+
+            try {
+                const url = `${API_BASE}/reports/visitors?start_date=${start}&end_date=${end}`;
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    const detail = Array.isArray(payload.detail)
+                        ? payload.detail.map(d => d.msg).join(', ')
+                        : (payload.detail || 'Failed to generate report.');
+                    setReportError(detail);
+                    return;
+                }
+
+                await renderReportPdf(payload);
+            } catch (error) {
+                console.error('Error generating printable report:', error);
+                setReportError('Unexpected error generating report. Please try again.');
+            } finally {
+                overlay.classList.remove('active');
+            }
+        }
+
+        function buildSiteVisitorTable(site) {
+            if (!site.visitors || site.visitors.length === 0) {
+                return '<p class="muted">No visitors recorded for this site within the selected dates.</p>';
+            }
+
+            const rows = site.visitors.map(visitor => `
+                <tr>
+                    <td>${escapeHtml(formatDateForReport(visitor.created_at))}</td>
+                    <td>${escapeHtml(visitor.buyer_name)}</td>
+                    <td>${escapeHtml(visitor.buyer_phone || '')}</td>
+                    <td>${escapeHtml(visitor.buyer_email || '')}</td>
+                    <td>${escapeHtml(visitor.purchase_timeline)}</td>
+                    <td>${escapeHtml(visitor.price_range)}</td>
+                    <td>${escapeHtml(visitor.capturing_agent)}</td>
+                    <td>${visitor.cinc_synced ? 'Synced' : 'Pending'}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <table class="table table-sm table-bordered report-table">
+                    <thead>
+                        <tr>
+                            <th>Date Logged</th>
+                            <th>Buyer</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Timeline</th>
+                            <th>Price Range</th>
+                            <th>Capturing Agent</th>
+                            <th>CINC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function renderReportPdf(report) {
+            const generatedAt = new Date().toLocaleString();
+            const overall = report.overall || {};
+            const sites = report.sites || [];
+
+            const overallSummary = `
+                <div class="summary-grid">
+                    <div><span class="label">Total Visitors</span><span class="value">${overall.total_visitors || 0}</span></div>
+                    <div><span class="label">CINC Synced</span><span class="value">${overall.cinc_synced || 0}</span></div>
+                    <div><span class="label">Pending CINC</span><span class="value">${overall.not_synced || 0}</span></div>
+                    <div><span class="label">Communities Represented</span><span class="value">${overall.site_count || 0}</span></div>
+                    <div><span class="label">Capturing Agents</span><span class="value">${overall.agent_count || 0}</span></div>
+                </div>
+                <div class="breakdown-row">
+                    <div>
+                        <h4>Timeline Breakdown</h4>
+                        ${renderBreakdownList(overall.timeline_breakdown)}
+                    </div>
+                    <div>
+                        <h4>Price Range Breakdown</h4>
+                        ${renderBreakdownList(overall.price_breakdown)}
+                    </div>
+                </div>
+            `;
+
+            const siteSections = sites.length === 0
+                ? '<p>No visitors were recorded during this period.</p>'
+                : sites.map(site => `
+                    <section class="site-section">
+                        <header>
+                            <h3>${escapeHtml(site.site)}</h3>
+                            <div class="site-summary">
+                                <div><span class="label">Visitors</span><span class="value">${site.total_visitors}</span></div>
+                                <div><span class="label">CINC Synced</span><span class="value">${site.cinc_synced}</span></div>
+                                <div><span class="label">Pending CINC</span><span class="value">${site.not_synced}</span></div>
+                                <div><span class="label">Agents</span><span class="value">${site.agent_count}</span></div>
+                                <div class="agents">
+                                    <span class="label">Agent Roster</span>
+                                    <span class="value">${site.agent_names && site.agent_names.length ? escapeHtml(site.agent_names.join(', ')) : '—'}</span>
+                                </div>
+                            </div>
+                        </header>
+                        <div class="breakdown-row">
+                            <div>
+                                <h4>Timeline</h4>
+                                ${renderBreakdownList(site.timeline_breakdown)}
+                            </div>
+                            <div>
+                                <h4>Price Range</h4>
+                                ${renderBreakdownList(site.price_breakdown)}
+                            </div>
+                        </div>
+                        ${buildSiteVisitorTable(site)}
+                    </section>
+                `).join('');
+
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            container.style.width = '8.5in';
+            container.style.minHeight = '11in';
+            container.style.background = '#ffffff';
+            container.style.padding = '0';
+            container.style.boxSizing = 'border-box';
+
+            const styleEl = document.createElement('style');
+            styleEl.textContent = `
+                @page {
+                    size: 8.5in 11in;
+                    margin: 0;
+                }
+                .report-root {
+                    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+                    color: #222;
+                    line-height: 1.45;
+                    margin: 0;
+                    padding: 0.75in 0.6in 0.6in 0.6in;
+                }
+                .report-root h1,
+                .report-root h2,
+                .report-root h3,
+                .report-root h4 {
+                    color: #670038;
+                    margin-bottom: 0.4rem;
+                }
+                .report-root h1 {
+                    margin-bottom: 0.2rem;
+                }
+                .report-root .meta {
+                    margin-bottom: 1.5rem;
+                    color: #555;
+                }
+                .report-root .summary-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                    gap: 12px;
+                    margin-bottom: 1.5rem;
+                }
+                .report-root .summary-grid .label {
+                    display: block;
+                    font-size: 0.8rem;
+                    text-transform: uppercase;
+                    color: #555;
+                }
+                .report-root .summary-grid .value {
+                    font-size: 1.4rem;
+                    font-weight: 600;
+                }
+                .report-root .breakdown-row {
+                    display: flex;
+                    gap: 24px;
+                    flex-wrap: wrap;
+                    margin-bottom: 1.5rem;
+                }
+                .report-root .breakdown-row > div {
+                    flex: 1 1 260px;
+                }
+                .report-root .breakdown-list {
+                    list-style: none;
+                    padding: 0;
+                    margin: 0;
+                }
+                .report-root .breakdown-list li {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 0;
+                    border-bottom: 1px solid #eee;
+                }
+                .report-root .breakdown-list .label {
+                    color: #555;
+                }
+                .report-root .breakdown-list .value {
+                    font-weight: 600;
+                }
+                .report-root .site-section {
+                    margin-bottom: 2.5rem;
+                    page-break-inside: avoid;
+                }
+                .report-root .site-section header {
+                    margin-bottom: 0.8rem;
+                }
+                .report-root .site-summary {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                    gap: 12px;
+                    margin-top: 0.4rem;
+                }
+                .report-root .site-summary .label {
+                    display: block;
+                    font-size: 0.75rem;
+                    text-transform: uppercase;
+                    color: #555;
+                }
+                .report-root .site-summary .value {
+                    font-size: 1.2rem;
+                    font-weight: 600;
+                }
+                .report-root .site-summary .agents {
+                    grid-column: 1 / -1;
+                    font-size: 0.95rem;
+                    color: #333;
+                }
+                .report-root .report-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 1rem;
+                    background: #fff;
+                }
+                .report-root .report-table th,
+                .report-root .report-table td {
+                    border: 1px solid #ccc;
+                    padding: 6px 8px;
+                    font-size: 0.9rem;
+                    text-align: left;
+                }
+                .report-root .report-table thead {
+                    background: #f5f0f3;
+                }
+                .report-root .muted {
+                    color: #777;
+                }
+                .report-root footer {
+                    margin-top: 3rem;
+                    font-size: 0.8rem;
+                    color: #777;
+                }
+            `;
+            container.appendChild(styleEl);
+
+            const root = document.createElement('div');
+            root.className = 'report-root';
+            root.innerHTML = `
+                <header>
+                    <h1>Visitor Performance Report</h1>
+                    <div class="meta">
+                        <div>Date Range: ${escapeHtml(report.date_range.start)} &ndash; ${escapeHtml(report.date_range.end)}</div>
+                        <div>Generated: ${escapeHtml(generatedAt)}</div>
+                        <div>Scope: All accessible sites</div>
+                    </div>
+                </header>
+                <section>
+                    <h2>Portfolio Summary</h2>
+                    ${overallSummary}
+                </section>
+                <section>
+                    <h2>Site Performance</h2>
+                    ${siteSections}
+                </section>
+                <footer>
+                    Generated by New Homes Lead Tracker • Internal use only
+                </footer>
+            `;
+            container.appendChild(root);
+
+            document.body.appendChild(container);
+
+            const filename = `visitor-report-${report.date_range.start}-to-${report.date_range.end}.pdf`;
+            const pdfWidthIn = 8.5;
+            const pdfHeightIn = 11;
+            const viewportWidthPx = container.offsetWidth || 816;
+
+            try {
+                const opt = {
+                    margin:       [0, 0, 0, 0],
+                    filename,
+                    pagebreak:    { mode: ['css', 'legacy'] },
+                    html2canvas:  { scale: 2, useCORS: true, windowWidth: viewportWidthPx },
+                    jsPDF:        { unit: 'in', format: [pdfWidthIn, pdfHeightIn], orientation: 'portrait' }
+                };
+
+                await html2pdf().set(opt).from(root).save();
+            } catch (error) {
+                console.error('Failed to create PDF:', error);
+                setReportError('Unable to generate the PDF. Please try again or use a shorter date range.');
+            } finally {
+                container.remove();
+            }
         }
 
         // Initialize on page load

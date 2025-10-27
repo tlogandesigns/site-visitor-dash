@@ -20,6 +20,7 @@ import io
 import os
 import re
 from contextlib import contextmanager
+from collections import defaultdict
 
 app = FastAPI(title="New Homes Lead Tracker", version="1.0.0")
 
@@ -1424,6 +1425,172 @@ def get_analytics(site: Optional[str] = None, current_user: UserInDB = Depends(g
                 "not_synced": sync_stats["not_synced"] or 0
             }
         }
+
+def _parse_report_dates(start_date: str, end_date: str) -> tuple[str, str]:
+    """Validate and normalize report date inputs (YYYY-MM-DD)."""
+    if not start_date or not end_date:
+        raise HTTPException(status_code=400, detail="Both start_date and end_date are required.")
+
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    if end < start:
+        raise HTTPException(status_code=400, detail="end_date must be on or after start_date.")
+
+    return start.isoformat(), end.isoformat()
+
+
+def _format_breakdown(counter: defaultdict) -> List[dict]:
+    """Convert a counter mapping into a sorted list for JSON responses."""
+    return [
+        {"label": label, "count": count}
+        for label, count in sorted(counter.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
+@app.get("/reports/visitors")
+def get_visitor_report(
+    start_date: str,
+    end_date: str,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Return printable visitor report data for a date range with per-site breakdowns."""
+    start, end = _parse_report_dates(start_date, end_date)
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        where_clauses = ["DATE(v.created_at) >= ?", "DATE(v.created_at) <= ?"]
+        params: List = [start, end]
+
+        if current_user.role == "user":
+            if current_user.agent_id is None:
+                raise HTTPException(status_code=400, detail="User account is not linked to an agent.")
+            where_clauses.append("v.capturing_agent_id = ?")
+            params.append(current_user.agent_id)
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        visitors_rows = cursor.execute(
+            f"""
+            SELECT
+                v.id,
+                v.buyer_name,
+                v.buyer_phone,
+                v.buyer_email,
+                v.purchase_timeline,
+                v.price_range,
+                v.site,
+                v.cinc_synced,
+                v.created_at,
+                v.capturing_agent_id,
+                a.name AS agent_name
+            FROM visitors v
+            LEFT JOIN agents a ON v.capturing_agent_id = a.id
+            {where_sql}
+            ORDER BY COALESCE(v.site, 'Unassigned') ASC, v.created_at ASC
+            """,
+            params
+        ).fetchall()
+
+        overall_total = len(visitors_rows)
+        overall_synced = 0
+        overall_agents = set()
+        overall_timeline = defaultdict(int)
+        overall_price = defaultdict(int)
+        site_map = {}
+
+        def ensure_site_entry(site_name: str):
+            if site_name not in site_map:
+                site_map[site_name] = {
+                    "visitors": [],
+                    "synced": 0,
+                    "agent_ids": set(),
+                    "agent_names": set(),
+                    "timeline": defaultdict(int),
+                    "price": defaultdict(int),
+                }
+
+        for row in visitors_rows:
+            site_name = row["site"] or "Unassigned"
+            ensure_site_entry(site_name)
+            entry = site_map[site_name]
+
+            visitor = {
+                "id": row["id"],
+                "buyer_name": row["buyer_name"],
+                "buyer_phone": row["buyer_phone"],
+                "buyer_email": row["buyer_email"],
+                "purchase_timeline": row["purchase_timeline"] or "Unknown",
+                "price_range": row["price_range"] or "Unknown",
+                "site": site_name,
+                "cinc_synced": bool(row["cinc_synced"]),
+                "created_at": row["created_at"],
+                "capturing_agent": row["agent_name"] or "Unassigned",
+            }
+
+            entry["visitors"].append(visitor)
+
+            if visitor["cinc_synced"]:
+                entry["synced"] += 1
+                overall_synced += 1
+
+            agent_id = row["capturing_agent_id"]
+            if agent_id is not None:
+                entry["agent_ids"].add(agent_id)
+                overall_agents.add(agent_id)
+
+            if row["agent_name"]:
+                entry["agent_names"].add(row["agent_name"])
+
+            timeline_key = visitor["purchase_timeline"]
+            price_key = visitor["price_range"]
+
+            entry["timeline"][timeline_key] += 1
+            entry["price"][price_key] += 1
+
+            overall_timeline[timeline_key] += 1
+            overall_price[price_key] += 1
+
+        sites_payload = []
+        for site_name in sorted(site_map.keys()):
+            site_data = site_map[site_name]
+            total_visitors = len(site_data["visitors"])
+            synced = site_data["synced"]
+
+            sites_payload.append({
+                "site": site_name,
+                "total_visitors": total_visitors,
+                "cinc_synced": synced,
+                "not_synced": total_visitors - synced,
+                "agent_count": len(site_data["agent_ids"]),
+                "agent_names": sorted(site_data["agent_names"]),
+                "timeline_breakdown": _format_breakdown(site_data["timeline"]),
+                "price_breakdown": _format_breakdown(site_data["price"]),
+                "visitors": site_data["visitors"],
+            })
+
+        response = {
+            "date_range": {
+                "start": start,
+                "end": end,
+            },
+            "overall": {
+                "total_visitors": overall_total,
+                "cinc_synced": overall_synced,
+                "not_synced": overall_total - overall_synced,
+                "site_count": len(site_map),
+                "agent_count": len(overall_agents),
+                "timeline_breakdown": _format_breakdown(overall_timeline),
+                "price_breakdown": _format_breakdown(overall_price),
+            },
+            "sites": sites_payload,
+        }
+
+        return response
 
 def initialize_super_admin():
     """Initialize or update super admin user on startup"""
