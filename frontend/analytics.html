@@ -11,6 +11,8 @@
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-x9frG3Z2PuAuyo6edS5nl2xe50Tzw9uQWGWpZJYGmLlXAGH7lhFzQ754YdNvKQGKDgsflayogQC16DLef0C9Rw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js" integrity="sha512-+pSnp2cik/whdHNDdHleWNmRzjR+r7ZB5JuyUpcOfVPGSIC2EZJXTD761PwTIahTt03QGyip0hURFt9BpZeuiQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <style>
         :root {
@@ -273,7 +275,6 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script>
         // API Configuration
@@ -744,6 +745,71 @@
             `;
         }
 
+        const REPORT_COLOR_PALETTE = [
+            '#670038', '#8a0049', '#a50062', '#c0007b', '#db0094',
+            '#4a0028', '#5a0032', '#6a003c', '#7a0046', '#8a0050'
+        ];
+
+        function normalizeBreakdown(items) {
+            if (!Array.isArray(items)) {
+                return [];
+            }
+            return items
+                .filter(item => item && item.label !== undefined && item.label !== null)
+                .map(item => ({
+                    label: String(item.label),
+                    count: Number(item.count) || 0
+                }));
+        }
+
+        function breakdownHasValues(items) {
+            return normalizeBreakdown(items).some(item => item.count > 0);
+        }
+
+        function getPalette(length) {
+            if (length <= REPORT_COLOR_PALETTE.length) {
+                return REPORT_COLOR_PALETTE.slice(0, length);
+            }
+            const colors = [...REPORT_COLOR_PALETTE];
+            while (colors.length < length) {
+                colors.push(REPORT_COLOR_PALETTE[colors.length % REPORT_COLOR_PALETTE.length]);
+            }
+            return colors;
+        }
+
+        function toPoints(px) {
+            return (px / 96) * 72;
+        }
+
+        async function createChartImage({ type, data, options, width = 520, height = 320 }) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.style.position = 'absolute';
+                canvas.style.left = '-9999px';
+                document.body.appendChild(canvas);
+
+                const ctx = canvas.getContext('2d');
+                const chart = new Chart(ctx, {
+                    type,
+                    data,
+                    options: Object.assign({}, options, {
+                        animation: false,
+                        responsive: false,
+                        maintainAspectRatio: false
+                    })
+                });
+
+                requestAnimationFrame(() => {
+                    const dataUrl = canvas.toDataURL('image/png', 1.0);
+                    chart.destroy();
+                    canvas.remove();
+                    resolve({ dataUrl, width, height });
+                });
+            });
+        }
+
         async function generatePrintableReport() {
             const start = document.getElementById('reportStartDate').value;
             const end = document.getElementById('reportEndDate').value;
@@ -761,8 +827,8 @@
                 return;
             }
 
-            if (typeof html2pdf === 'undefined') {
-                setReportError('PDF generator failed to load. Check your network connection and try again.');
+            if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+                setReportError('PDF generator failed to load. Refresh the page and try again.');
                 return;
             }
 
@@ -838,6 +904,12 @@
         }
 
         async function renderReportPdf(report) {
+            if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+                setReportError('PDF generator failed to load. Refresh and try again.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
             const generatedAt = new Date().toLocaleString();
             const overall = report.overall || {};
             const sites = report.sites || [];
@@ -846,463 +918,383 @@
             const allVisitors = sites.flatMap(site =>
                 (site.visitors || []).map(visitor => ({
                     ...visitor,
-                    site: site.site
+                    site: site.site || 'Unassigned'
                 }))
             );
 
-            const leadRows = allVisitors.map((visitor, index) => {
-                const phone = visitor.buyer_phone ? escapeHtml(visitor.buyer_phone) : '—';
-                const email = visitor.buyer_email ? escapeHtml(visitor.buyer_email) : '—';
-                const logged = visitor.created_at ? escapeHtml(formatDateForReport(visitor.created_at)) : '—';
-                return `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${escapeHtml(visitor.buyer_name)}</td>
-                        <td>${phone}</td>
-                        <td>${email}</td>
-                        <td>${escapeHtml(visitor.site)}</td>
-                        <td>${escapeHtml(visitor.capturing_agent)}</td>
-                        <td>${logged}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            const leadTableHtml = leadRows
-                ? `
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Buyer</th>
-                                <th>Phone</th>
-                                <th>Email</th>
-                                <th>Site</th>
-                                <th>Agent</th>
-                                <th>Logged</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${leadRows}
-                        </tbody>
-                    </table>
-                `
-                : '<p class="muted">No visitors were recorded during this period.</p>';
-
-            const notesItems = allVisitors
+            const notes = allVisitors
                 .filter(visitor => visitor.notes && visitor.notes.trim())
-                .map(visitor => `
-                    <li>
-                        <div class="note-meta">
-                            <strong>${escapeHtml(visitor.buyer_name)}</strong>
-                            <span>• ${escapeHtml(visitor.site)}</span>
-                            <span>• ${escapeHtml(visitor.capturing_agent)}</span>
-                        </div>
-                        <div class="note-body">${escapeHtml(visitor.notes)}</div>
-                    </li>
-                `)
-                .join('');
+                .map(visitor => ({
+                    header: `${visitor.buyer_name || 'Unknown'} • ${visitor.site || 'Unassigned'} • ${visitor.capturing_agent || 'Unassigned'}`,
+                    body: visitor.notes.trim()
+                }));
 
-            const notesHtml = notesItems
-                ? `<ul class="notes-list">${notesItems}</ul>`
-                : '<p class="muted">No notes recorded during this period.</p>';
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' });
 
-            const overallSummary = `
-                <div class="summary-grid">
-                    <div><span class="label">Total Visitors</span><span class="value">${overall.total_visitors || 0}</span></div>
-                    <div><span class="label">CINC Synced</span><span class="value">${overall.cinc_synced || 0}</span></div>
-                    <div><span class="label">Pending CINC</span><span class="value">${overall.not_synced || 0}</span></div>
-                    <div><span class="label">Communities Represented</span><span class="value">${overall.site_count || 0}</span></div>
-                    <div><span class="label">Capturing Agents</span><span class="value">${overall.agent_count || 0}</span></div>
-                </div>
-            `;
+            if (typeof doc.autoTable !== 'function') {
+                setReportError('PDF table plugin failed to load. Refresh and try again.');
+                return;
+            }
 
-            const container = document.createElement('div');
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
-            container.style.top = '0';
-            container.style.width = '8.5in';
-            container.style.minHeight = '11in';
-            container.style.background = '#ffffff';
-            container.style.padding = '0';
-            container.style.boxSizing = 'border-box';
-
-            const styleEl = document.createElement('style');
-            styleEl.textContent = `
-                @page {
-                    size: 8.5in 11in;
-                    margin: 0;
-                }
-                .report-root {
-                    font-family: "Segoe UI", Roboto, Arial, sans-serif;
-                    color: #222;
-                    line-height: 1.45;
-                    margin: 0 auto;
-                    padding: 0.75in 0.6in 0.6in 0.6in;
-                    max-width: 7.25in;
-                }
-                .report-root h1,
-                .report-root h2,
-                .report-root h3 {
-                    color: #670038;
-                    margin-bottom: 0.4rem;
-                }
-                .report-root h1 {
-                    margin-bottom: 0.2rem;
-                }
-                .report-root .meta {
-                    margin-bottom: 1.5rem;
-                    color: #555;
-                }
-                .section {
-                    margin-bottom: 2rem;
-                }
-                .section,
-                .report-root .chart-card,
-                .report-root .notes-list li {
-                    break-inside: avoid;
-                    page-break-inside: avoid;
-                }
-                .report-root .summary-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-                    gap: 12px;
-                    margin-top: 1rem;
-                }
-                .report-root .summary-grid .label {
-                    display: block;
-                    font-size: 0.8rem;
-                    text-transform: uppercase;
-                    color: #555;
-                }
-                .report-root .summary-grid .value {
-                    font-size: 1.4rem;
-                    font-weight: 600;
-                }
-                .report-root .report-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 1rem;
-                    background: #fff;
-                }
-                .report-root .report-table th,
-                .report-root .report-table td {
-                    border: 1px solid #ccc;
-                    padding: 6px 8px;
-                    font-size: 0.9rem;
-                    text-align: left;
-                    vertical-align: top;
-                }
-                .report-root .report-table thead {
-                    background: #f5f0f3;
-                    display: table-header-group;
-                }
-                .report-root .report-table tbody tr {
-                    break-inside: avoid;
-                    page-break-inside: avoid;
-                }
-                .report-root .report-table tbody td {
-                    word-break: break-word;
-                }
-                .chart-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-                    gap: 16px;
-                    margin-top: 1rem;
-                }
-                .chart-card {
-                    background: #fff;
-                    border: 1px solid #e3d0d9;
-                    border-radius: 8px;
-                    padding: 12px;
-                    min-height: 240px;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .chart-card h3 {
-                    font-size: 1rem;
-                    margin-bottom: 0.5rem;
-                }
-                .chart-card canvas {
-                    width: 100%;
-                    height: 220px;
-                }
-                .notes-list {
-                    list-style: none;
-                    padding: 0;
-                    margin: 1rem 0 0 0;
-                    display: grid;
-                    gap: 12px;
-                }
-                .notes-list li {
-                    background: #f8f3f6;
-                    border: 1px solid #e3d0d9;
-                    border-radius: 8px;
-                    padding: 12px;
-                }
-                .notes-list .note-meta {
-                    font-size: 0.9rem;
-                    color: #555;
-                    margin-bottom: 0.35rem;
-                }
-                .notes-list .note-body {
-                    white-space: pre-wrap;
-                    line-height: 1.4;
-                }
-                .muted {
-                    color: #777;
-                }
-                .report-root footer {
-                    margin-top: 3rem;
-                    font-size: 0.8rem;
-                    color: #777;
-                }
-            `;
-            container.appendChild(styleEl);
-
-            const root = document.createElement('div');
-            root.className = 'report-root';
-            root.innerHTML = `
-                <header>
-                    <h1>Visitor Performance Report</h1>
-                    <div class="meta">
-                        <div>Date Range: ${escapeHtml(report.date_range.start)} &ndash; ${escapeHtml(report.date_range.end)}</div>
-                        <div>Generated: ${escapeHtml(generatedAt)}</div>
-                        <div>Scope: All accessible sites</div>
-                    </div>
-                </header>
-                <section class="section">
-                    <h2>Portfolio Summary</h2>
-                    ${overallSummary}
-                </section>
-                <section class="section">
-                    <h2>Lead Directory</h2>
-                    ${leadTableHtml}
-                </section>
-                <section class="section chart-section">
-                    <h2>Key Insights</h2>
-                    <div class="chart-grid" id="reportChartGrid"></div>
-                </section>
-                <section class="section">
-                    <h2>Notes</h2>
-                    ${notesHtml}
-                </section>
-                <footer>
-                    Generated by New Homes Lead Tracker • Internal use only
-                </footer>
-            `;
-            container.appendChild(root);
-
-            document.body.appendChild(container);
-
-            const chartGrid = root.querySelector('#reportChartGrid');
-            const chartInstances = [];
-            const palette = ['#670038', '#8a0049', '#a50062', '#c0007b', '#db0094', '#4a0028', '#5a0032', '#6a003c', '#7a0046', '#8a0050'];
-            const mutedPalette = ['#d8b8c9', '#e6cdd9', '#f3e2ea', '#f8edf3', '#fef6fa'];
-
-            const hasValues = breakdown => Array.isArray(breakdown) && breakdown.some(item => item.count > 0);
-            const ensureColors = (length) => {
-                if (length <= palette.length) {
-                    return palette.slice(0, length);
-                }
-                const extended = [...palette];
-                while (extended.length < length) {
-                    extended.push(palette[extended.length % palette.length]);
-                }
-                return extended;
-            };
-
-            const createEmptyMessage = (card) => {
-                const empty = document.createElement('p');
-                empty.className = 'muted';
-                empty.textContent = 'No data available for this chart.';
-                card.appendChild(empty);
-            };
-
-            const renderPieChart = (card, breakdown, canvasId) => {
-                if (!hasValues(breakdown)) {
-                    createEmptyMessage(card);
-                    return;
-                }
-                const canvas = document.createElement('canvas');
-                canvas.id = canvasId;
-                canvas.width = 600;
-                canvas.height = 220;
-                card.appendChild(canvas);
-                const ctx = canvas.getContext('2d');
-                const labels = breakdown.map(item => item.label);
-                const data = breakdown.map(item => item.count);
-                const colors = ensureColors(labels.length);
-                const chart = new Chart(ctx, {
-                    type: 'pie',
-                    data: {
-                        labels,
-                        datasets: [{
-                            data,
-                            backgroundColor: colors,
-                            borderColor: '#ffffff',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        plugins: {
-                            legend: { position: 'bottom' }
-                        }
-                    }
-                });
-                chartInstances.push(chart);
-            };
-
-            const renderBarChart = (card, breakdown, canvasId, horizontal = false) => {
-                if (!hasValues(breakdown)) {
-                    createEmptyMessage(card);
-                    return;
-                }
-                const canvas = document.createElement('canvas');
-                canvas.id = canvasId;
-                canvas.width = 600;
-                canvas.height = 220;
-                card.appendChild(canvas);
-                const ctx = canvas.getContext('2d');
-                const labels = breakdown.map(item => item.label);
-                const data = breakdown.map(item => item.count);
-                const chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels,
-                        datasets: [{
-                            label: 'Leads',
-                            data,
-                            backgroundColor: '#670038',
-                            borderRadius: 6,
-                        }]
-                    },
-                    options: {
-                        indexAxis: horizontal ? 'y' : 'x',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false }
-                        },
-                        scales: {
-                            x: {
-                                beginAtZero: true,
-                                ticks: { precision: 0 }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                ticks: { precision: 0 }
-                            }
-                        }
-                    }
-                });
-                chartInstances.push(chart);
-            };
-
-            const renderDoubleBarChart = (card, offerBreakdown, contractBreakdown, canvasId) => {
-                const toMap = (items) => items.reduce((acc, item) => {
-                    acc[item.label] = item.count;
-                    return acc;
-                }, {});
-                const offerMap = toMap(Array.isArray(offerBreakdown) ? offerBreakdown : []);
-                const contractMap = toMap(Array.isArray(contractBreakdown) ? contractBreakdown : []);
-                const total = (offerMap.Yes || 0) + (offerMap.No || 0) + (contractMap.Yes || 0) + (contractMap.No || 0);
-                if (total === 0) {
-                    createEmptyMessage(card);
-                    return;
-                }
-
-                const canvas = document.createElement('canvas');
-                canvas.id = canvasId;
-                canvas.width = 600;
-                canvas.height = 220;
-                card.appendChild(canvas);
-                const ctx = canvas.getContext('2d');
-                const chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Offer on the Table', 'Finalized Contracts'],
-                        datasets: [
-                            {
-                                label: 'Yes',
-                                data: [offerMap.Yes || 0, contractMap.Yes || 0],
-                                backgroundColor: '#670038',
-                                borderRadius: 6
-                            },
-                            {
-                                label: 'No',
-                                data: [offerMap.No || 0, contractMap.No || 0],
-                                backgroundColor: mutedPalette[0],
-                                borderRadius: 6
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: { precision: 0 }
-                            }
-                        }
-                    }
-                });
-                chartInstances.push(chart);
-            };
-
-            const addChartCard = (title, renderFn) => {
-                const card = document.createElement('div');
-                card.className = 'chart-card';
-                const heading = document.createElement('h3');
-                heading.textContent = title;
-                card.appendChild(heading);
-                renderFn(card);
-                chartGrid.appendChild(card);
-            };
-
-            addChartCard('First Visit Status', (card) => renderPieChart(card, aggregates.first_visit || [], 'chart-first-visit'));
-            addChartCard('Interested In', (card) => renderPieChart(card, aggregates.interested_in || [], 'chart-interested-in'));
-            addChartCard('Timeline', (card) => renderPieChart(card, aggregates.timeline || [], 'chart-timeline'));
-            addChartCard('Discovery Method', (card) => renderBarChart(card, aggregates.discovery || [], 'chart-discovery', true));
-            addChartCard('Builders Requested', (card) => renderPieChart(card, aggregates.builders_requested || [], 'chart-builders'));
-            addChartCard('Deal Progress', (card) => renderDoubleBarChart(card, aggregates.offer_on_table || [], aggregates.finalized_contracts || [], 'chart-deal-progress'));
-            addChartCard('Leads by Site', (card) => renderBarChart(card, aggregates.sites || [], 'chart-sites', true));
-            addChartCard('Leads by Agent', (card) => renderBarChart(card, aggregates.agents || [], 'chart-agents', true));
-
-            const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-            await waitForPaint();
+            const accentColor = [103, 0, 56];
+            const textColor = [34, 34, 34];
+            const mutedColor = [120, 120, 120];
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const marginX = 48;
+            const marginTop = 60;
+            let cursorY = marginTop;
 
             const filename = `visitor-report-${report.date_range.start}-to-${report.date_range.end}.pdf`;
-            const pdfWidthIn = 8.5;
-            const pdfHeightIn = 11;
-            const viewportWidthPx = container.offsetWidth || 816;
+            doc.setProperties({
+                title: 'Visitor Performance Report',
+                subject: filename
+            });
 
-            try {
-                const opt = {
-                    margin:       [0, 0, 0, 0],
-                    filename,
-                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.chart-card', '.notes-list li', '.report-table tr'] },
-                    html2canvas:  { scale: 2, useCORS: true, windowWidth: viewportWidthPx },
-                    jsPDF:        { unit: 'in', format: [pdfWidthIn, pdfHeightIn], orientation: 'portrait' }
-                };
+            function ensureSpace(height) {
+                if (cursorY + height > pageHeight - marginTop) {
+                    doc.addPage();
+                    cursorY = marginTop;
+                }
+            }
 
-                await html2pdf().set(opt).from(root).save();
-            } catch (error) {
-                console.error('Failed to create PDF:', error);
-                setReportError('Unable to generate the PDF. Please try again or use a shorter date range.');
-            } finally {
-                chartInstances.forEach(chart => {
-                    if (chart && typeof chart.destroy === 'function') {
-                        chart.destroy();
+            function addSectionTitle(title) {
+                ensureSpace(28);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(...accentColor);
+                doc.text(title, marginX, cursorY);
+                cursorY += 22;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(11);
+                doc.setTextColor(...textColor);
+            }
+
+            function addHeader() {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(20);
+                doc.setTextColor(...accentColor);
+                doc.text('Visitor Performance Report', marginX, cursorY);
+                cursorY += 28;
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(11);
+                doc.setTextColor(...textColor);
+                doc.text(`Date Range: ${report.date_range.start} – ${report.date_range.end}`, marginX, cursorY);
+                cursorY += 16;
+                doc.text(`Generated: ${generatedAt}`, marginX, cursorY);
+                cursorY += 16;
+                doc.text('Scope: All accessible sites', marginX, cursorY);
+                cursorY += 24;
+            }
+
+            addHeader();
+
+            const summaryItems = [
+                { label: 'Total Visitors', value: overall.total_visitors || 0 },
+                { label: 'CINC Synced', value: overall.cinc_synced || 0 },
+                { label: 'Pending CINC', value: overall.not_synced || 0 },
+                { label: 'Communities Represented', value: overall.site_count || 0 },
+                { label: 'Capturing Agents', value: overall.agent_count || 0 },
+            ];
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(12);
+            doc.setTextColor(...textColor);
+
+            summaryItems.forEach(item => {
+                ensureSpace(18);
+                doc.text(`${item.label}: ${item.value}`, marginX, cursorY);
+                cursorY += 18;
+            });
+            cursorY += 12;
+
+            addSectionTitle('Lead Directory');
+
+            if (allVisitors.length === 0) {
+                ensureSpace(16);
+                doc.text('No visitors were recorded during this period.', marginX, cursorY);
+                cursorY += 20;
+            } else {
+                const leadRows = allVisitors.map((visitor, index) => [
+                    index + 1,
+                    visitor.buyer_name || '—',
+                    visitor.buyer_phone || '—',
+                    visitor.buyer_email || '—',
+                    visitor.site || '—',
+                    visitor.capturing_agent || '—',
+                    visitor.created_at ? formatDateForReport(visitor.created_at) : '—'
+                ]);
+
+                doc.autoTable({
+                    head: [['#', 'Buyer', 'Phone', 'Email', 'Site', 'Agent', 'Logged']],
+                    body: leadRows,
+                    startY: cursorY,
+                    margin: { left: marginX, right: marginX },
+                    styles: {
+                        fontSize: 9,
+                        textColor: textColor,
+                        lineColor: [220, 210, 215],
+                        lineWidth: 0.5,
+                        cellPadding: 4
+                    },
+                    headStyles: {
+                        fillColor: accentColor,
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold'
+                    },
+                    alternateRowStyles: {
+                        fillColor: [249, 242, 246]
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 24 },
+                        1: { cellWidth: 120 },
+                        2: { cellWidth: 80 },
+                        3: { cellWidth: 140 },
+                        4: { cellWidth: 80 },
+                        5: { cellWidth: 110 },
+                        6: { cellWidth: 80 }
+                    },
+                    theme: 'grid',
+                    didDrawPage: () => {
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(9);
+                        doc.setTextColor(...mutedColor);
+                        doc.text(
+                            `Visitor Performance Report • ${report.date_range.start} – ${report.date_range.end}`,
+                            marginX,
+                            36
+                        );
                     }
                 });
-                container.remove();
+
+                cursorY = (doc.lastAutoTable && doc.lastAutoTable.finalY)
+                    ? doc.lastAutoTable.finalY + 28
+                    : cursorY + 28;
+
+                if (cursorY > pageHeight - marginTop) {
+                    doc.addPage();
+                    cursorY = marginTop;
+                }
             }
+
+            addSectionTitle('Key Insights');
+
+            const chartRequests = [
+                { title: 'First Visit Status', kind: 'pie', breakdown: normalizeBreakdown(aggregates.first_visit) },
+                { title: 'Interested In', kind: 'pie', breakdown: normalizeBreakdown(aggregates.interested_in) },
+                { title: 'Timeline', kind: 'pie', breakdown: normalizeBreakdown(aggregates.timeline) },
+                { title: 'Discovery Method', kind: 'bar-horizontal', breakdown: normalizeBreakdown(aggregates.discovery) },
+                { title: 'Builders Requested', kind: 'pie', breakdown: normalizeBreakdown(aggregates.builders_requested) },
+                {
+                    title: 'Deal Progress',
+                    kind: 'double-bar',
+                    data: {
+                        offer: normalizeBreakdown(aggregates.offer_on_table),
+                        contracts: normalizeBreakdown(aggregates.finalized_contracts)
+                    }
+                },
+                { title: 'Leads by Site', kind: 'bar-horizontal', breakdown: normalizeBreakdown(aggregates.sites) },
+                { title: 'Leads by Agent', kind: 'bar-horizontal', breakdown: normalizeBreakdown(aggregates.agents) },
+            ];
+
+            const chartDisplayWidth = 240;
+            const chartSpacing = 24;
+            const chartOutputs = [];
+
+            for (const request of chartRequests) {
+                if (request.kind === 'double-bar') {
+                    const offerMap = (request.data.offer || []).reduce((acc, item) => {
+                        acc[item.label] = item.count;
+                        return acc;
+                    }, {});
+                    const contractMap = (request.data.contracts || []).reduce((acc, item) => {
+                        acc[item.label] = item.count;
+                        return acc;
+                    }, {});
+                    const total = (offerMap.Yes || 0) + (offerMap.No || 0) + (contractMap.Yes || 0) + (contractMap.No || 0);
+                    if (total === 0) {
+                        chartOutputs.push({ title: request.title, noData: true });
+                        continue;
+                    }
+
+                    const chartImage = await createChartImage({
+                        type: 'bar',
+                        width: 640,
+                        height: 380,
+                        data: {
+                            labels: ['Offer on the Table', 'Finalized Contracts'],
+                            datasets: [
+                                {
+                                    label: 'Yes',
+                                    data: [offerMap.Yes || 0, contractMap.Yes || 0],
+                                    backgroundColor: '#670038',
+                                    borderRadius: 6
+                                },
+                                {
+                                    label: 'No',
+                                    data: [offerMap.No || 0, contractMap.No || 0],
+                                    backgroundColor: '#d8b8c9',
+                                    borderRadius: 6
+                                }
+                            ]
+                        },
+                        options: {
+                            plugins: { legend: { position: 'bottom' } },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: { precision: 0 }
+                                }
+                            }
+                        }
+                    });
+
+                    chartOutputs.push({
+                        title: request.title,
+                        dataUrl: chartImage.dataUrl,
+                        displayWidth: chartDisplayWidth,
+                        displayHeight: chartDisplayWidth * (chartImage.height / chartImage.width)
+                    });
+                    continue;
+                }
+
+                const breakdown = normalizeBreakdown(request.breakdown || []);
+                if (!breakdownHasValues(breakdown)) {
+                    chartOutputs.push({ title: request.title, noData: true });
+                    continue;
+                }
+
+                const labels = breakdown.map(item => item.label);
+                const counts = breakdown.map(item => item.count);
+
+                if (request.kind === 'pie') {
+                    const chartImage = await createChartImage({
+                        type: 'pie',
+                        width: 640,
+                        height: 400,
+                        data: {
+                            labels,
+                            datasets: [{
+                                data: counts,
+                                backgroundColor: getPalette(labels.length),
+                                borderColor: '#ffffff',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            plugins: { legend: { position: 'bottom' } }
+                        }
+                    });
+
+                    chartOutputs.push({
+                        title: request.title,
+                        dataUrl: chartImage.dataUrl,
+                        displayWidth: chartDisplayWidth,
+                        displayHeight: chartDisplayWidth * (chartImage.height / chartImage.width)
+                    });
+                } else if (request.kind === 'bar-horizontal') {
+                    const chartImage = await createChartImage({
+                        type: 'bar',
+                        width: 640,
+                        height: 420,
+                        data: {
+                            labels,
+                            datasets: [{
+                                label: 'Leads',
+                                data: counts,
+                                backgroundColor: '#670038',
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    ticks: { precision: 0 }
+                                }
+                            },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+
+                    chartOutputs.push({
+                        title: request.title,
+                        dataUrl: chartImage.dataUrl,
+                        displayWidth: chartDisplayWidth,
+                        displayHeight: chartDisplayWidth * (chartImage.height / chartImage.width)
+                    });
+                }
+            }
+
+            let chartColumn = 0;
+            let rowHeight = 0;
+            const chartsPerRow = 2;
+
+            chartOutputs.forEach(output => {
+                const estimatedHeight = output.noData ? 60 : output.displayHeight + 28;
+                if (chartColumn === 0) {
+                    ensureSpace(estimatedHeight + 20);
+                }
+
+                const x = marginX + chartColumn * (chartDisplayWidth + chartSpacing);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(...accentColor);
+                doc.text(output.title, x, cursorY);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(...textColor);
+
+                if (output.noData) {
+                    doc.text('No data available for this chart.', x, cursorY + 18);
+                    rowHeight = Math.max(rowHeight, 60);
+                } else {
+                    doc.addImage(output.dataUrl, 'PNG', x, cursorY + 10, output.displayWidth, output.displayHeight);
+                    rowHeight = Math.max(rowHeight, output.displayHeight + 32);
+                }
+
+                chartColumn += 1;
+
+                if (chartColumn === chartsPerRow) {
+                    cursorY += rowHeight + 24;
+                    chartColumn = 0;
+                    rowHeight = 0;
+                }
+            });
+
+            if (chartColumn !== 0) {
+                cursorY += rowHeight + 24;
+            }
+
+            addSectionTitle('Notes');
+
+            if (notes.length === 0) {
+                ensureSpace(16);
+                doc.text('No notes recorded during this period.', marginX, cursorY);
+                cursorY += 20;
+            } else {
+                notes.forEach(note => {
+                    ensureSpace(40);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.setTextColor(...accentColor);
+                    doc.text(note.header, marginX, cursorY);
+                    cursorY += 14;
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(10);
+                    doc.setTextColor(...textColor);
+                    const wrapped = doc.splitTextToSize(note.body, pageWidth - marginX * 2);
+                    doc.text(wrapped, marginX, cursorY);
+                    cursorY += wrapped.length * 12 + 16;
+                });
+            }
+
+            doc.save(filename);
         }
 
         // Initialize on page load
