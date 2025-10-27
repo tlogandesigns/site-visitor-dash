@@ -1036,7 +1036,8 @@
                         textColor: textColor,
                         lineColor: [220, 210, 215],
                         lineWidth: 0.5,
-                        cellPadding: 4
+                        cellPadding: { top: 4, right: 3, bottom: 4, left: 3 },
+                        overflow: 'linebreak'
                     },
                     headStyles: {
                         fillColor: accentColor,
@@ -1048,12 +1049,12 @@
                     },
                     columnStyles: {
                         0: { cellWidth: 24 },
-                        1: { cellWidth: 120 },
-                        2: { cellWidth: 80 },
-                        3: { cellWidth: 140 },
-                        4: { cellWidth: 80 },
-                        5: { cellWidth: 110 },
-                        6: { cellWidth: 80 }
+                        1: { cellWidth: 95 },
+                        2: { cellWidth: 65 },
+                        3: { cellWidth: 120 },
+                        4: { cellWidth: 60 },
+                        5: { cellWidth: 85 },
+                        6: { cellWidth: 60 }
                     },
                     theme: 'grid',
                     didDrawPage: () => {
