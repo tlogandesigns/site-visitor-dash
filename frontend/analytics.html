@@ -955,6 +955,12 @@
                 .section {
                     margin-bottom: 2rem;
                 }
+                .section,
+                .report-root .chart-card,
+                .report-root .notes-list li {
+                    break-inside: avoid;
+                    page-break-inside: avoid;
+                }
                 .report-root .summary-grid {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -987,6 +993,14 @@
                 }
                 .report-root .report-table thead {
                     background: #f5f0f3;
+                    display: table-header-group;
+                }
+                .report-root .report-table tbody tr {
+                    break-inside: avoid;
+                    page-break-inside: avoid;
+                }
+                .report-root .report-table tbody td {
+                    word-break: break-word;
                 }
                 .chart-grid {
                     display: grid;
@@ -1110,6 +1124,8 @@
                 }
                 const canvas = document.createElement('canvas');
                 canvas.id = canvasId;
+                canvas.width = 600;
+                canvas.height = 220;
                 card.appendChild(canvas);
                 const ctx = canvas.getContext('2d');
                 const labels = breakdown.map(item => item.label);
@@ -1142,6 +1158,8 @@
                 }
                 const canvas = document.createElement('canvas');
                 canvas.id = canvasId;
+                canvas.width = 600;
+                canvas.height = 220;
                 card.appendChild(canvas);
                 const ctx = canvas.getContext('2d');
                 const labels = breakdown.map(item => item.label);
@@ -1194,6 +1212,8 @@
 
                 const canvas = document.createElement('canvas');
                 canvas.id = canvasId;
+                canvas.width = 600;
+                canvas.height = 220;
                 card.appendChild(canvas);
                 const ctx = canvas.getContext('2d');
                 const chart = new Chart(ctx, {
@@ -1265,7 +1285,7 @@
                 const opt = {
                     margin:       [0, 0, 0, 0],
                     filename,
-                    pagebreak:    { mode: ['css', 'legacy'] },
+                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.chart-card', '.notes-list li', '.report-table tr'] },
                     html2canvas:  { scale: 2, useCORS: true, windowWidth: viewportWidthPx },
                     jsPDF:        { unit: 'in', format: [pdfWidthIn, pdfHeightIn], orientation: 'portrait' }
                 };
