@@ -1481,8 +1481,15 @@ def get_visitor_report(
                 v.buyer_name,
                 v.buyer_phone,
                 v.buyer_email,
+                v.first_visit,
+                v.interested_in,
                 v.purchase_timeline,
                 v.price_range,
+                v.discovery_method,
+                v.builders_requested,
+                v.offer_on_table,
+                v.finalized_contracts,
+                v.notes,
                 v.site,
                 v.cinc_synced,
                 v.created_at,
@@ -1501,6 +1508,14 @@ def get_visitor_report(
         overall_agents = set()
         overall_timeline = defaultdict(int)
         overall_price = defaultdict(int)
+        overall_first_visit = defaultdict(int)
+        overall_interests = defaultdict(int)
+        overall_discovery = defaultdict(int)
+        overall_builders = defaultdict(int)
+        overall_offer = {"Yes": 0, "No": 0}
+        overall_contracts = {"Yes": 0, "No": 0}
+        overall_site_totals = defaultdict(int)
+        overall_agent_totals = defaultdict(int)
         site_map = {}
 
         def ensure_site_entry(site_name: str):
@@ -1518,18 +1533,57 @@ def get_visitor_report(
             site_name = row["site"] or "Unassigned"
             ensure_site_entry(site_name)
             entry = site_map[site_name]
+            overall_site_totals[site_name] += 1
+
+            agent_name = row["agent_name"] or "Unassigned"
+            overall_agent_totals[agent_name] += 1
+
+            first_visit_value = row["first_visit"]
+            if first_visit_value is None:
+                first_visit_label = "Unknown"
+            else:
+                first_visit_label = "First Visit" if bool(first_visit_value) else "Returning"
+            overall_first_visit[first_visit_label] += 1
+
+            discovery_label = row["discovery_method"] or "Unknown"
+            overall_discovery[discovery_label] += 1
+
+            offer_label = "Yes" if row["offer_on_table"] else "No"
+            overall_offer[offer_label] += 1
+
+            contract_label = "Yes" if row["finalized_contracts"] else "No"
+            overall_contracts[contract_label] += 1
+
+            interested_in_values = [
+                item.strip() for item in (row["interested_in"] or "").split(",") if item.strip()
+            ]
+            for value in interested_in_values:
+                overall_interests[value] += 1
+
+            builder_values = [
+                item.strip() for item in (row["builders_requested"] or "").split(",") if item.strip()
+            ]
+            for value in builder_values:
+                overall_builders[value] += 1
 
             visitor = {
                 "id": row["id"],
                 "buyer_name": row["buyer_name"],
                 "buyer_phone": row["buyer_phone"],
                 "buyer_email": row["buyer_email"],
+                "first_visit": first_visit_value if first_visit_value is None else bool(first_visit_value),
+                "interested_in": interested_in_values,
                 "purchase_timeline": row["purchase_timeline"] or "Unknown",
                 "price_range": row["price_range"] or "Unknown",
+                "discovery_method": discovery_label,
+                "builders_requested": builder_values,
+                "offer_on_table": bool(row["offer_on_table"]),
+                "finalized_contracts": bool(row["finalized_contracts"]),
+                "notes": row["notes"],
                 "site": site_name,
                 "cinc_synced": bool(row["cinc_synced"]),
                 "created_at": row["created_at"],
-                "capturing_agent": row["agent_name"] or "Unassigned",
+                "capturing_agent": agent_name,
             }
 
             entry["visitors"].append(visitor)
@@ -1586,6 +1640,23 @@ def get_visitor_report(
                 "agent_count": len(overall_agents),
                 "timeline_breakdown": _format_breakdown(overall_timeline),
                 "price_breakdown": _format_breakdown(overall_price),
+            },
+            "aggregates": {
+                "first_visit": _format_breakdown(overall_first_visit),
+                "interested_in": _format_breakdown(overall_interests),
+                "timeline": _format_breakdown(overall_timeline),
+                "discovery": _format_breakdown(overall_discovery),
+                "builders_requested": _format_breakdown(overall_builders),
+                "offer_on_table": [
+                    {"label": "Yes", "count": overall_offer["Yes"]},
+                    {"label": "No", "count": overall_offer["No"]},
+                ],
+                "finalized_contracts": [
+                    {"label": "Yes", "count": overall_contracts["Yes"]},
+                    {"label": "No", "count": overall_contracts["No"]},
+                ],
+                "sites": _format_breakdown(overall_site_totals),
+                "agents": _format_breakdown(overall_agent_totals),
             },
             "sites": sites_payload,
         }

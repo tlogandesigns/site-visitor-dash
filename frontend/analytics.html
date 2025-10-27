@@ -841,6 +841,70 @@
             const generatedAt = new Date().toLocaleString();
             const overall = report.overall || {};
             const sites = report.sites || [];
+            const aggregates = report.aggregates || {};
+
+            const allVisitors = sites.flatMap(site =>
+                (site.visitors || []).map(visitor => ({
+                    ...visitor,
+                    site: site.site
+                }))
+            );
+
+            const leadRows = allVisitors.map((visitor, index) => {
+                const phone = visitor.buyer_phone ? escapeHtml(visitor.buyer_phone) : '—';
+                const email = visitor.buyer_email ? escapeHtml(visitor.buyer_email) : '—';
+                const logged = visitor.created_at ? escapeHtml(formatDateForReport(visitor.created_at)) : '—';
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${escapeHtml(visitor.buyer_name)}</td>
+                        <td>${phone}</td>
+                        <td>${email}</td>
+                        <td>${escapeHtml(visitor.site)}</td>
+                        <td>${escapeHtml(visitor.capturing_agent)}</td>
+                        <td>${logged}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const leadTableHtml = leadRows
+                ? `
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Buyer</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Site</th>
+                                <th>Agent</th>
+                                <th>Logged</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${leadRows}
+                        </tbody>
+                    </table>
+                `
+                : '<p class="muted">No visitors were recorded during this period.</p>';
+
+            const notesItems = allVisitors
+                .filter(visitor => visitor.notes && visitor.notes.trim())
+                .map(visitor => `
+                    <li>
+                        <div class="note-meta">
+                            <strong>${escapeHtml(visitor.buyer_name)}</strong>
+                            <span>• ${escapeHtml(visitor.site)}</span>
+                            <span>• ${escapeHtml(visitor.capturing_agent)}</span>
+                        </div>
+                        <div class="note-body">${escapeHtml(visitor.notes)}</div>
+                    </li>
+                `)
+                .join('');
+
+            const notesHtml = notesItems
+                ? `<ul class="notes-list">${notesItems}</ul>`
+                : '<p class="muted">No notes recorded during this period.</p>';
 
             const overallSummary = `
                 <div class="summary-grid">
@@ -850,48 +914,7 @@
                     <div><span class="label">Communities Represented</span><span class="value">${overall.site_count || 0}</span></div>
                     <div><span class="label">Capturing Agents</span><span class="value">${overall.agent_count || 0}</span></div>
                 </div>
-                <div class="breakdown-row">
-                    <div>
-                        <h4>Timeline Breakdown</h4>
-                        ${renderBreakdownList(overall.timeline_breakdown)}
-                    </div>
-                    <div>
-                        <h4>Price Range Breakdown</h4>
-                        ${renderBreakdownList(overall.price_breakdown)}
-                    </div>
-                </div>
             `;
-
-            const siteSections = sites.length === 0
-                ? '<p>No visitors were recorded during this period.</p>'
-                : sites.map(site => `
-                    <section class="site-section">
-                        <header>
-                            <h3>${escapeHtml(site.site)}</h3>
-                            <div class="site-summary">
-                                <div><span class="label">Visitors</span><span class="value">${site.total_visitors}</span></div>
-                                <div><span class="label">CINC Synced</span><span class="value">${site.cinc_synced}</span></div>
-                                <div><span class="label">Pending CINC</span><span class="value">${site.not_synced}</span></div>
-                                <div><span class="label">Agents</span><span class="value">${site.agent_count}</span></div>
-                                <div class="agents">
-                                    <span class="label">Agent Roster</span>
-                                    <span class="value">${site.agent_names && site.agent_names.length ? escapeHtml(site.agent_names.join(', ')) : '—'}</span>
-                                </div>
-                            </div>
-                        </header>
-                        <div class="breakdown-row">
-                            <div>
-                                <h4>Timeline</h4>
-                                ${renderBreakdownList(site.timeline_breakdown)}
-                            </div>
-                            <div>
-                                <h4>Price Range</h4>
-                                ${renderBreakdownList(site.price_breakdown)}
-                            </div>
-                        </div>
-                        ${buildSiteVisitorTable(site)}
-                    </section>
-                `).join('');
 
             const container = document.createElement('div');
             container.style.position = 'absolute';
@@ -918,8 +941,7 @@
                 }
                 .report-root h1,
                 .report-root h2,
-                .report-root h3,
-                .report-root h4 {
+                .report-root h3 {
                     color: #670038;
                     margin-bottom: 0.4rem;
                 }
@@ -930,11 +952,14 @@
                     margin-bottom: 1.5rem;
                     color: #555;
                 }
+                .section {
+                    margin-bottom: 2rem;
+                }
                 .report-root .summary-grid {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
                     gap: 12px;
-                    margin-bottom: 1.5rem;
+                    margin-top: 1rem;
                 }
                 .report-root .summary-grid .label {
                     display: block;
@@ -945,60 +970,6 @@
                 .report-root .summary-grid .value {
                     font-size: 1.4rem;
                     font-weight: 600;
-                }
-                .report-root .breakdown-row {
-                    display: flex;
-                    gap: 24px;
-                    flex-wrap: wrap;
-                    margin-bottom: 1.5rem;
-                }
-                .report-root .breakdown-row > div {
-                    flex: 1 1 260px;
-                }
-                .report-root .breakdown-list {
-                    list-style: none;
-                    padding: 0;
-                    margin: 0;
-                }
-                .report-root .breakdown-list li {
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 6px 0;
-                    border-bottom: 1px solid #eee;
-                }
-                .report-root .breakdown-list .label {
-                    color: #555;
-                }
-                .report-root .breakdown-list .value {
-                    font-weight: 600;
-                }
-                .report-root .site-section {
-                    margin-bottom: 2.5rem;
-                    page-break-inside: avoid;
-                }
-                .report-root .site-section header {
-                    margin-bottom: 0.8rem;
-                }
-                .report-root .site-summary {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-                    gap: 12px;
-                    margin-top: 0.4rem;
-                }
-                .report-root .site-summary .label {
-                    display: block;
-                    font-size: 0.75rem;
-                    text-transform: uppercase;
-                    color: #555;
-                }
-                .report-root .site-summary .value {
-                    font-size: 1.2rem;
-                    font-weight: 600;
-                }
-                .report-root .site-summary .agents {
-                    grid-column: 1 / -1;
-                    font-size: 0.95rem;
-                    color: #333;
                 }
                 .report-root .report-table {
                     width: 100%;
@@ -1012,11 +983,57 @@
                     padding: 6px 8px;
                     font-size: 0.9rem;
                     text-align: left;
+                    vertical-align: top;
                 }
                 .report-root .report-table thead {
                     background: #f5f0f3;
                 }
-                .report-root .muted {
+                .chart-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                    gap: 16px;
+                    margin-top: 1rem;
+                }
+                .chart-card {
+                    background: #fff;
+                    border: 1px solid #e3d0d9;
+                    border-radius: 8px;
+                    padding: 12px;
+                    min-height: 240px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .chart-card h3 {
+                    font-size: 1rem;
+                    margin-bottom: 0.5rem;
+                }
+                .chart-card canvas {
+                    width: 100%;
+                    height: 220px;
+                }
+                .notes-list {
+                    list-style: none;
+                    padding: 0;
+                    margin: 1rem 0 0 0;
+                    display: grid;
+                    gap: 12px;
+                }
+                .notes-list li {
+                    background: #f8f3f6;
+                    border: 1px solid #e3d0d9;
+                    border-radius: 8px;
+                    padding: 12px;
+                }
+                .notes-list .note-meta {
+                    font-size: 0.9rem;
+                    color: #555;
+                    margin-bottom: 0.35rem;
+                }
+                .notes-list .note-body {
+                    white-space: pre-wrap;
+                    line-height: 1.4;
+                }
+                .muted {
                     color: #777;
                 }
                 .report-root footer {
@@ -1038,13 +1055,21 @@
                         <div>Scope: All accessible sites</div>
                     </div>
                 </header>
-                <section>
+                <section class="section">
                     <h2>Portfolio Summary</h2>
                     ${overallSummary}
                 </section>
-                <section>
-                    <h2>Site Performance</h2>
-                    ${siteSections}
+                <section class="section">
+                    <h2>Lead Directory</h2>
+                    ${leadTableHtml}
+                </section>
+                <section class="section chart-section">
+                    <h2>Key Insights</h2>
+                    <div class="chart-grid" id="reportChartGrid"></div>
+                </section>
+                <section class="section">
+                    <h2>Notes</h2>
+                    ${notesHtml}
                 </section>
                 <footer>
                     Generated by New Homes Lead Tracker • Internal use only
@@ -1053,6 +1078,183 @@
             container.appendChild(root);
 
             document.body.appendChild(container);
+
+            const chartGrid = root.querySelector('#reportChartGrid');
+            const chartInstances = [];
+            const palette = ['#670038', '#8a0049', '#a50062', '#c0007b', '#db0094', '#4a0028', '#5a0032', '#6a003c', '#7a0046', '#8a0050'];
+            const mutedPalette = ['#d8b8c9', '#e6cdd9', '#f3e2ea', '#f8edf3', '#fef6fa'];
+
+            const hasValues = breakdown => Array.isArray(breakdown) && breakdown.some(item => item.count > 0);
+            const ensureColors = (length) => {
+                if (length <= palette.length) {
+                    return palette.slice(0, length);
+                }
+                const extended = [...palette];
+                while (extended.length < length) {
+                    extended.push(palette[extended.length % palette.length]);
+                }
+                return extended;
+            };
+
+            const createEmptyMessage = (card) => {
+                const empty = document.createElement('p');
+                empty.className = 'muted';
+                empty.textContent = 'No data available for this chart.';
+                card.appendChild(empty);
+            };
+
+            const renderPieChart = (card, breakdown, canvasId) => {
+                if (!hasValues(breakdown)) {
+                    createEmptyMessage(card);
+                    return;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.id = canvasId;
+                card.appendChild(canvas);
+                const ctx = canvas.getContext('2d');
+                const labels = breakdown.map(item => item.label);
+                const data = breakdown.map(item => item.count);
+                const colors = ensureColors(labels.length);
+                const chart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data,
+                            backgroundColor: colors,
+                            borderColor: '#ffffff',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+                chartInstances.push(chart);
+            };
+
+            const renderBarChart = (card, breakdown, canvasId, horizontal = false) => {
+                if (!hasValues(breakdown)) {
+                    createEmptyMessage(card);
+                    return;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.id = canvasId;
+                card.appendChild(canvas);
+                const ctx = canvas.getContext('2d');
+                const labels = breakdown.map(item => item.label);
+                const data = breakdown.map(item => item.count);
+                const chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Leads',
+                            data,
+                            backgroundColor: '#670038',
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        indexAxis: horizontal ? 'y' : 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            }
+                        }
+                    }
+                });
+                chartInstances.push(chart);
+            };
+
+            const renderDoubleBarChart = (card, offerBreakdown, contractBreakdown, canvasId) => {
+                const toMap = (items) => items.reduce((acc, item) => {
+                    acc[item.label] = item.count;
+                    return acc;
+                }, {});
+                const offerMap = toMap(Array.isArray(offerBreakdown) ? offerBreakdown : []);
+                const contractMap = toMap(Array.isArray(contractBreakdown) ? contractBreakdown : []);
+                const total = (offerMap.Yes || 0) + (offerMap.No || 0) + (contractMap.Yes || 0) + (contractMap.No || 0);
+                if (total === 0) {
+                    createEmptyMessage(card);
+                    return;
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.id = canvasId;
+                card.appendChild(canvas);
+                const ctx = canvas.getContext('2d');
+                const chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Offer on the Table', 'Finalized Contracts'],
+                        datasets: [
+                            {
+                                label: 'Yes',
+                                data: [offerMap.Yes || 0, contractMap.Yes || 0],
+                                backgroundColor: '#670038',
+                                borderRadius: 6
+                            },
+                            {
+                                label: 'No',
+                                data: [offerMap.No || 0, contractMap.No || 0],
+                                backgroundColor: mutedPalette[0],
+                                borderRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            }
+                        }
+                    }
+                });
+                chartInstances.push(chart);
+            };
+
+            const addChartCard = (title, renderFn) => {
+                const card = document.createElement('div');
+                card.className = 'chart-card';
+                const heading = document.createElement('h3');
+                heading.textContent = title;
+                card.appendChild(heading);
+                renderFn(card);
+                chartGrid.appendChild(card);
+            };
+
+            addChartCard('First Visit Status', (card) => renderPieChart(card, aggregates.first_visit || [], 'chart-first-visit'));
+            addChartCard('Interested In', (card) => renderPieChart(card, aggregates.interested_in || [], 'chart-interested-in'));
+            addChartCard('Timeline', (card) => renderPieChart(card, aggregates.timeline || [], 'chart-timeline'));
+            addChartCard('Discovery Method', (card) => renderBarChart(card, aggregates.discovery || [], 'chart-discovery', true));
+            addChartCard('Builders Requested', (card) => renderPieChart(card, aggregates.builders_requested || [], 'chart-builders'));
+            addChartCard('Deal Progress', (card) => renderDoubleBarChart(card, aggregates.offer_on_table || [], aggregates.finalized_contracts || [], 'chart-deal-progress'));
+            addChartCard('Leads by Site', (card) => renderBarChart(card, aggregates.sites || [], 'chart-sites', true));
+            addChartCard('Leads by Agent', (card) => renderBarChart(card, aggregates.agents || [], 'chart-agents', true));
+
+            const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            await waitForPaint();
 
             const filename = `visitor-report-${report.date_range.start}-to-${report.date_range.end}.pdf`;
             const pdfWidthIn = 8.5;
@@ -1073,6 +1275,11 @@
                 console.error('Failed to create PDF:', error);
                 setReportError('Unable to generate the PDF. Please try again or use a shorter date range.');
             } finally {
+                chartInstances.forEach(chart => {
+                    if (chart && typeof chart.destroy === 'function') {
+                        chart.destroy();
+                    }
+                });
                 container.remove();
             }
         }
