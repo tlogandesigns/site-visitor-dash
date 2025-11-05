@@ -6,6 +6,7 @@ credentials.json
 data/
 *.db
 *.db-journal
+leads.db
 
 # Python
 __pycache__/
@@ -58,3 +59,4 @@ images/
 *.ico
 
 .DS_Store
+data/leads.db
