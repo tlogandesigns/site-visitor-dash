@@ -301,6 +301,11 @@
                     <i class="bi bi-briefcase"></i> Agent Management
                 </button>
             </li>
+            <li class="nav-item" role="presentation" id="profileTabNav">
+                <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profileTab" type="button" role="tab">
+                    <i class="bi bi-person-circle"></i> Manage Profile
+                </button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -454,6 +459,78 @@
                 </div>
             </div>
             <!-- End Agent Management Tab -->
+
+            <!-- Manage Profile Tab -->
+            <div class="tab-pane fade" id="profileTab" role="tabpanel">
+                <div class="row">
+                    <!-- Profile Information Card -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="bi bi-person-circle"></i> Profile Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="profileForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Username</label>
+                                        <input type="text" class="form-control" id="profileUsername" disabled>
+                                        <div class="form-text">Username cannot be changed</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="profileEmail" placeholder="your.email@example.com">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Role</label>
+                                        <input type="text" class="form-control" id="profileRole" disabled>
+                                    </div>
+                                    <div class="mb-3" id="profileAgentDiv" style="display: none;">
+                                        <label class="form-label">Linked Agent</label>
+                                        <input type="text" class="form-control" id="profileAgent" disabled>
+                                    </div>
+                                    <div id="profileUpdateError" class="alert alert-danger d-none"></div>
+                                    <div id="profileUpdateSuccess" class="alert alert-success d-none"></div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-save"></i> Update Profile
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Change Password Card -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Change Password</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="changePasswordForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Current Password</label>
+                                        <input type="password" class="form-control" id="currentPassword" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">New Password</label>
+                                        <input type="password" class="form-control" id="newPassword" required minlength="6">
+                                        <div class="form-text">Minimum 6 characters</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Confirm New Password</label>
+                                        <input type="password" class="form-control" id="confirmPassword" required>
+                                    </div>
+                                    <div id="passwordUpdateError" class="alert alert-danger d-none"></div>
+                                    <div id="passwordUpdateSuccess" class="alert alert-success d-none"></div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-key"></i> Change Password
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Manage Profile Tab -->
         </div>
         <!-- End Tab Content -->
     </div>
@@ -1321,6 +1398,15 @@
             document.getElementById('users-tab').addEventListener('click', function() {
                 loadUsers();
             });
+
+            // Add tab change listener to load profile when switching to profile tab
+            document.getElementById('profile-tab').addEventListener('click', function() {
+                loadProfile();
+            });
+
+            // Add form submission listeners for profile management
+            document.getElementById('profileForm').addEventListener('submit', updateProfile);
+            document.getElementById('changePasswordForm').addEventListener('submit', changePassword);
         }
 
         // Check authentication on page load
@@ -2620,6 +2706,149 @@
 
         // ============================================
         // END AGENT MANAGEMENT FUNCTIONS
+        // ============================================
+
+        // ============================================
+        // PROFILE MANAGEMENT FUNCTIONS
+        // ============================================
+
+        // Load current user profile data
+        async function loadProfile() {
+            try {
+                const response = await fetch('/api/users/me', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load profile');
+                }
+
+                const user = await response.json();
+
+                // Populate profile form
+                document.getElementById('profileUsername').value = user.username || '';
+                document.getElementById('profileEmail').value = user.email || '';
+                document.getElementById('profileRole').value = formatRole(user.role);
+
+                // Show agent info if user has linked agent
+                if (user.agent_name) {
+                    document.getElementById('profileAgentDiv').style.display = 'block';
+                    document.getElementById('profileAgent').value = user.agent_name;
+                } else {
+                    document.getElementById('profileAgentDiv').style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showToast('Failed to load profile data', 'error');
+            }
+        }
+
+        // Update profile information
+        async function updateProfile(event) {
+            event.preventDefault();
+
+            // Clear previous messages
+            document.getElementById('profileUpdateError').classList.add('d-none');
+            document.getElementById('profileUpdateSuccess').classList.add('d-none');
+
+            const email = document.getElementById('profileEmail').value.trim();
+
+            try {
+                const response = await fetch('/api/users/me', {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email || null
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to update profile');
+                }
+
+                document.getElementById('profileUpdateSuccess').textContent = 'Profile updated successfully!';
+                document.getElementById('profileUpdateSuccess').classList.remove('d-none');
+                showToast('Profile updated successfully!', 'success');
+
+                // Update currentUser email in memory
+                currentUser.email = email;
+
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                document.getElementById('profileUpdateError').textContent = error.message;
+                document.getElementById('profileUpdateError').classList.remove('d-none');
+                showToast(error.message, 'error');
+            }
+        }
+
+        // Change password
+        async function changePassword(event) {
+            event.preventDefault();
+
+            // Clear previous messages
+            document.getElementById('passwordUpdateError').classList.add('d-none');
+            document.getElementById('passwordUpdateSuccess').classList.add('d-none');
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validate passwords match
+            if (newPassword !== confirmPassword) {
+                document.getElementById('passwordUpdateError').textContent = 'New passwords do not match';
+                document.getElementById('passwordUpdateError').classList.remove('d-none');
+                return;
+            }
+
+            // Validate password length
+            if (newPassword.length < 6) {
+                document.getElementById('passwordUpdateError').textContent = 'Password must be at least 6 characters';
+                document.getElementById('passwordUpdateError').classList.remove('d-none');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/users/me/password', {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to change password');
+                }
+
+                // Clear form
+                document.getElementById('changePasswordForm').reset();
+
+                document.getElementById('passwordUpdateSuccess').textContent = 'Password changed successfully!';
+                document.getElementById('passwordUpdateSuccess').classList.remove('d-none');
+                showToast('Password changed successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error changing password:', error);
+                document.getElementById('passwordUpdateError').textContent = error.message;
+                document.getElementById('passwordUpdateError').classList.remove('d-none');
+                showToast(error.message, 'error');
+            }
+        }
+
+        // ============================================
+        // END PROFILE MANAGEMENT FUNCTIONS
         // ============================================
     </script>
 </body>

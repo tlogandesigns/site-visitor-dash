@@ -197,6 +197,15 @@ class UserUpdate(BaseModel):
             raise ValueError('Password must contain at least one number')
         return v
 
+class ProfileUpdate(BaseModel):
+    """Model for users updating their own profile"""
+    email: Optional[EmailStr] = None
+
+class PasswordChange(BaseModel):
+    """Model for changing password"""
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6, max_length=100)
+
 class VisitorCreate(BaseModel):
     # Required fields (always)
     buyer_name: str = Field(..., min_length=2, max_length=255)
@@ -719,6 +728,76 @@ async def delete_user(user_id: int, current_user: UserInDB = Depends(get_current
         cursor.execute("UPDATE users SET active = 0 WHERE id = ?", (user_id,))
 
         return {"message": "User deactivated successfully"}
+
+@app.get("/users/me")
+async def get_current_user_profile(current_user: UserInDB = Depends(get_current_user)):
+    """Get current user's profile information"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get user with agent info
+        user = cursor.execute("""
+            SELECT u.id, u.username, u.email, u.role, u.agent_id, a.name as agent_name, u.created_at
+            FROM users u
+            LEFT JOIN agents a ON u.agent_id = a.id
+            WHERE u.id = ?
+        """, (current_user.id,)).fetchone()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return dict(user)
+
+@app.patch("/users/me")
+async def update_current_user_profile(
+    profile_update: ProfileUpdate,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Update current user's profile (email only)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Update email if provided
+        if profile_update.email is not None:
+            cursor.execute(
+                "UPDATE users SET email = ? WHERE id = ?",
+                (profile_update.email, current_user.id)
+            )
+
+        return {"message": "Profile updated successfully"}
+
+@app.patch("/users/me/password")
+async def change_current_user_password(
+    password_change: PasswordChange,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Change current user's password"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get current password hash
+        user = cursor.execute(
+            "SELECT password_hash FROM users WHERE id = ?",
+            (current_user.id,)
+        ).fetchone()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify current password
+        if not verify_password(password_change.current_password, user["password_hash"]):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        # Hash new password
+        new_password_hash = hash_password(password_change.new_password)
+
+        # Update password
+        cursor.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (new_password_hash, current_user.id)
+        )
+
+        return {"message": "Password changed successfully"}
 
 @app.post("/visitors")
 def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_current_user)):
