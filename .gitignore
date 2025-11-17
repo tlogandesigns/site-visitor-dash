@@ -1,6 +1,6 @@
 # Environment and secrets
 .env
-credentials.json
+
 
 # Database
 data/
