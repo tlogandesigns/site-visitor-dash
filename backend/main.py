@@ -789,7 +789,7 @@ async def change_current_user_password(
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
         # Hash new password
-        new_password_hash = hash_password(password_change.new_password)
+        new_password_hash = get_password_hash(password_change.new_password)
 
         # Update password
         cursor.execute(
