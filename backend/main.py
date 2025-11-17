@@ -796,6 +796,7 @@ async def change_current_user_password(
             "UPDATE users SET password_hash = ? WHERE id = ?",
             (new_password_hash, current_user.id)
         )
+        conn.commit()
 
         return {"message": "Password changed successfully"}
 
