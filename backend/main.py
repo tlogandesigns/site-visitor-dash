@@ -1536,6 +1536,7 @@ def _format_breakdown(counter: defaultdict) -> List[dict]:
 def get_visitor_report(
     start_date: str,
     end_date: str,
+    site: Optional[str] = None,
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Return printable visitor report data for a date range with per-site breakdowns."""
@@ -1552,6 +1553,11 @@ def get_visitor_report(
                 raise HTTPException(status_code=400, detail="User account is not linked to an agent.")
             where_clauses.append("v.capturing_agent_id = ?")
             params.append(current_user.agent_id)
+
+        # Add site filter if provided
+        if site:
+            where_clauses.append("v.site = ?")
+            params.append(site)
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 

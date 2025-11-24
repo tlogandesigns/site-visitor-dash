@@ -240,7 +240,7 @@
                             <h5 class="card-title mb-0">
                                 <i class="bi bi-printer"></i> Printable Visitor Report
                             </h5>
-                            <span class="text-muted small">Generate a date-bound summary for all communities.</span>
+                            <span class="text-muted small" id="reportScopeText">Generate a date-bound summary for all communities.</span>
                         </div>
                         <div id="reportError" class="alert alert-danger d-none" role="alert"></div>
                         <div class="row g-3 align-items-end">
@@ -379,6 +379,17 @@
             }
         }
 
+        // Update report scope text based on selected site
+        function updateReportScopeText() {
+            const site = document.getElementById('siteFilter').value;
+            const reportScopeText = document.getElementById('reportScopeText');
+            if (site) {
+                reportScopeText.textContent = `Generate a date-bound summary for ${site}.`;
+            } else {
+                reportScopeText.textContent = 'Generate a date-bound summary for all communities.';
+            }
+        }
+
         // Load analytics data
         async function loadAnalytics() {
             const overlay = document.getElementById('loadingOverlay');
@@ -389,6 +400,9 @@
                 const url = site
                     ? `${API_BASE}/analytics?site=${encodeURIComponent(site)}`
                     : `${API_BASE}/analytics`;
+
+                // Update report scope text
+                updateReportScopeText();
 
                 const response = await fetch(url, {
                     headers: getAuthHeaders()
@@ -813,6 +827,7 @@
         async function generatePrintableReport() {
             const start = document.getElementById('reportStartDate').value;
             const end = document.getElementById('reportEndDate').value;
+            const site = document.getElementById('siteFilter').value;
             const overlay = document.getElementById('loadingOverlay');
 
             setReportError(null);
@@ -835,7 +850,10 @@
             overlay.classList.add('active');
 
             try {
-                const url = `${API_BASE}/reports/visitors?start_date=${start}&end_date=${end}`;
+                let url = `${API_BASE}/reports/visitors?start_date=${start}&end_date=${end}`;
+                if (site) {
+                    url += `&site=${encodeURIComponent(site)}`;
+                }
                 const response = await fetch(url, {
                     headers: getAuthHeaders()
                 });
