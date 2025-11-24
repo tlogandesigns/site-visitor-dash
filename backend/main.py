@@ -209,6 +209,7 @@ class PasswordChange(BaseModel):
 class VisitorCreate(BaseModel):
     # Required fields (always)
     buyer_name: str = Field(..., min_length=2, max_length=255)
+    secondary_visitor: Optional[str] = Field(None, max_length=255)  # Optional secondary visitor name
     first_visit: bool = Field(...)
     represented: bool = Field(...)
     capturing_agent_id: Optional[int] = Field(None, gt=0)  # Optional - will be set from user's agent_id if not provided
@@ -841,15 +842,15 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
         # Insert visitor with all new fields
         cursor.execute("""
             INSERT INTO visitors (
-                buyer_name, buyer_phone, buyer_email, first_visit,
+                buyer_name, secondary_visitor, buyer_phone, buyer_email, first_visit,
                 interested_in, purchase_timeline, represented, cobroker_name,
                 is_local, buyer_state, occupation, occupation_other,
                 discovery_method, builders_requested, offer_on_table,
                 finalized_contracts, notes, price_range, location_looking,
                 location_current, agent_name, capturing_agent_id, site
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            visitor.buyer_name, visitor.buyer_phone, visitor.buyer_email,
+            visitor.buyer_name, visitor.secondary_visitor, visitor.buyer_phone, visitor.buyer_email,
             visitor.first_visit, interested_in_str, timeline_str,
             visitor.represented, visitor.cobroker_name, visitor.is_local,
             visitor.buyer_state, occupation_str, visitor.occupation_other,

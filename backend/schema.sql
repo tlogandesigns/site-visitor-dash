@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS visitors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     -- Buyer Info (Required fields)
     buyer_name TEXT NOT NULL,
+    secondary_visitor TEXT,  -- Optional secondary visitor name
     buyer_phone TEXT,  -- Not required if represented
     buyer_email TEXT,  -- Not required if represented
 
