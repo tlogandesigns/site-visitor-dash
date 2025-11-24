@@ -19,7 +19,7 @@ services:
       - GOOGLE_SHEET_KEY=${GOOGLE_SHEET_KEY}
       - WORKSHEET_NAME=${WORKSHEET_NAME:-Sheet1}
     volumes:
-      - ./data:/data
+      - newhomes-data:/data
       - ./backend/schema.sql:/app/schema.sql
       - ./credentials.json:/credentials.json:ro
     healthcheck:
@@ -48,4 +48,5 @@ networks:
     driver: bridge
 
 volumes:
-  data:
+  newhomes-data:
+    name: newhomes-leadtracker-data
