@@ -1780,10 +1780,21 @@ def initialize_super_admin():
 @app.on_event("startup")
 async def startup_event():
     """Run on application startup"""
-    # Initialize database
+    # Initialize database only if tables don't exist
     with get_db() as conn:
-        with open("schema.sql", "r") as f:
-            conn.executescript(f.read())
+        cursor = conn.cursor()
+        # Check if visitors table exists
+        table_check = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='visitors'"
+        ).fetchone()
+
+        if not table_check:
+            # Database is empty, run schema
+            print("Initializing database schema...")
+            with open("schema.sql", "r") as f:
+                conn.executescript(f.read())
+        else:
+            print("Database already initialized, skipping schema creation")
 
     # Initialize super admin
     initialize_super_admin()
