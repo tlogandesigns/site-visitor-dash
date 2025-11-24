@@ -1470,8 +1470,8 @@ def get_analytics(site: Optional[str] = None, current_user: UserInDB = Depends(g
                 leads_by_agent = cursor.execute("""
                     SELECT a.name as agent_name, COUNT(v.id) as count
                     FROM agents a
+                    INNER JOIN agent_sites ags ON ags.agent_id = a.id AND ags.site = ?
                     LEFT JOIN visitors v ON a.id = v.capturing_agent_id AND v.site = ?
-                    WHERE a.site = ?
                     GROUP BY a.id, a.name
                     ORDER BY count DESC
                 """, (site, site)).fetchall()
