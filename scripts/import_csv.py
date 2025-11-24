@@ -5,10 +5,11 @@ Import visitors from CSV export file
 import sqlite3
 import csv
 import sys
+import os
 from pathlib import Path
 
-# Database path
-DB_PATH = Path(__file__).parent.parent / "data" / "leads.db"
+# Database path - use environment variable or default to Docker path
+DB_PATH = os.environ.get('DATABASE_PATH', '/data/leads.db')
 
 def import_csv(csv_path):
     """Import visitors from CSV file"""
