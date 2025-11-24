@@ -873,7 +873,7 @@
                     return;
                 }
 
-                await renderReportPdf(payload);
+                await renderReportPdf(payload, site);
             } catch (error) {
                 console.error('Error generating printable report:', error);
                 setReportError('Unexpected error generating report. Please try again.');
@@ -921,7 +921,7 @@
             `;
         }
 
-        async function renderReportPdf(report) {
+        async function renderReportPdf(report, selectedSite) {
             if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
                 setReportError('PDF generator failed to load. Refresh and try again.');
                 return;
@@ -1002,7 +1002,8 @@
                 cursorY += 16;
                 doc.text(`Generated: ${generatedAt}`, marginX, cursorY);
                 cursorY += 16;
-                doc.text('Scope: All accessible sites', marginX, cursorY);
+                const scopeText = selectedSite ? `Scope: ${selectedSite}` : 'Scope: All accessible sites';
+                doc.text(scopeText, marginX, cursorY);
                 cursorY += 24;
             }
 
