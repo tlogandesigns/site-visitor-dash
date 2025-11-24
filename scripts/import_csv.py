@@ -32,7 +32,8 @@ def import_csv(csv_path):
         for row in reader:
             try:
                 # Create agent if doesn't exist
-                agent_name = row.get('agent_name')
+                # Note: CSV has 'agent_name:1' for the actual agent name
+                agent_name = row.get('agent_name:1') or row.get('agent_name')
                 agent_cinc_id = row.get('agent_cinc_id')
 
                 if agent_name and agent_cinc_id:
