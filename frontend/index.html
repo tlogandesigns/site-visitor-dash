@@ -1640,7 +1640,7 @@
                         <td>${visitor.purchase_timeline || '-'}</td>
                         <td>${visitor.price_range || '-'}</td>
                         <td>${visitor.site}</td>
-                        <td>${visitor.agent_name}</td>
+                        <td>${visitor.agent_name || '-'}</td>
                         <td>${cincBadge}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showVisitorDetail(${visitor.id})">
@@ -1832,7 +1832,7 @@
                         <div class="col-md-6">
                             <h6 class="text-muted">Visit Information</h6>
                             <p><strong>Site:</strong> ${visitor.site}</p>
-                            <p><strong>Capturing Agent:</strong> ${visitor.agent_name}</p>
+                            <p><strong>Capturing Agent:</strong> ${visitor.agent_name || '-'}</p>
                             <p><strong>Visit Date:</strong> ${new Date(visitor.created_at).toLocaleString()}</p>
                             <p><strong>CINC Status:</strong> ${visitor.cinc_synced ? '<span class="badge badge-synced">Synced</span>' : '<span class="badge badge-pending">Pending</span>'}</p>
                         </div>
@@ -1847,7 +1847,7 @@
                         html += `
                             <div class="list-group-item">
                                 <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">${note.agent_name}</h6>
+                                    <h6 class="mb-1">${note.agent_name || 'Unknown Agent'}</h6>
                                     <small class="note-timestamp">${new Date(note.created_at).toLocaleString()}</small>
                                 </div>
                                 <p class="mb-0">${note.note}</p>
