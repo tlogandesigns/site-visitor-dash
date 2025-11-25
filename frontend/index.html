@@ -835,10 +835,9 @@
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Site</label>
-                                <select class="form-select" id="site">
-                                    <option value="">Select site...</option>
-                                </select>
+                                <label class="form-label">Site *</label>
+                                <input type="text" class="form-control" id="site" list="siteList" placeholder="Enter or select site..." required>
+                                <datalist id="siteList"></datalist>
                             </div>
 
                             <!-- Capturing Agent - Only shown for admins/super_admins -->
@@ -1509,9 +1508,20 @@
                 loadStats();
             });
 
-            // Site selection change in form
+            // Site input change in form (debounced to avoid filtering on every keystroke)
+            let siteInputTimeout;
+            document.getElementById('site').addEventListener('input', function() {
+                clearTimeout(siteInputTimeout);
+                siteInputTimeout = setTimeout(() => {
+                    if (this.value.length > 0) {
+                        filterAgentsBySite(this.value);
+                    }
+                }, 500);
+            });
             document.getElementById('site').addEventListener('change', function() {
-                filterAgentsBySite(this.value);
+                if (this.value.length > 0) {
+                    filterAgentsBySite(this.value);
+                }
             });
         });
 
@@ -1529,15 +1539,14 @@
                 sites = data.sites;
 
                 const siteFilter = document.getElementById('siteFilter');
-                const siteSelect = document.getElementById('site');
+                const siteList = document.getElementById('siteList');
 
                 // Clear existing options except the first (placeholder)
                 while (siteFilter.options.length > 1) {
                     siteFilter.remove(1);
                 }
-                while (siteSelect.options.length > 1) {
-                    siteSelect.remove(1);
-                }
+                // Clear datalist
+                siteList.innerHTML = '';
 
                 // Add sites
                 sites.forEach(site => {
@@ -1548,8 +1557,7 @@
 
                     const option2 = document.createElement('option');
                     option2.value = site;
-                    option2.textContent = site;
-                    siteSelect.appendChild(option2);
+                    siteList.appendChild(option2);
                 });
             } catch (error) {
                 console.error('Error loading sites:', error);
@@ -1811,6 +1819,9 @@
 
             } catch (error) {
                 console.error('Error creating visitor:', error);
+                if (error.detail) {
+                    console.error('Validation errors:', JSON.stringify(error.detail, null, 2));
+                }
                 await handleApiError(error, 'Failed to add visitor. Please check your input and try again.');
             } finally {
                 setButtonLoading(submitBtn, false);
