@@ -869,6 +869,13 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
 
         visitor_id = cursor.lastrowid
 
+        # If there's an initial note, add it to visitor_notes table
+        if visitor.notes and visitor.notes.strip():
+            cursor.execute("""
+                INSERT INTO visitor_notes (visitor_id, agent_id, note)
+                VALUES (?, ?, ?)
+            """, (visitor_id, capturing_agent_id, visitor.notes.strip()))
+
         # Sync to Zapier webhook
         visitor_dict = visitor.dict()
         visitor_dict["created_at"] = datetime.now().isoformat()
