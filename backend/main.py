@@ -568,6 +568,51 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
     except requests.exceptions.RequestException as e:
         return {"success": False, "error": str(e)}
 
+def sync_note_to_zapier(note_data: dict, visitor_data: dict, agent_data: dict) -> dict:
+    """
+    Send note/comment to Zapier webhook for syncing to CINC
+    """
+    if not ZAPIER_WEBHOOK_URL:
+        return {"success": False, "error": "Zapier webhook URL not configured"}
+
+    try:
+        # Prepare payload for note sync
+        payload = {
+            "type": "note",  # Distinguish from lead creation
+            "note": note_data["note"],
+            "noteTimestamp": note_data.get("created_at", datetime.now().isoformat()),
+
+            # Visitor/Lead Information
+            "leadName": visitor_data.get("buyer_name", ""),
+            "leadEmail": visitor_data.get("buyer_email", ""),
+            "leadPhone": visitor_data.get("buyer_phone", ""),
+            "cincLeadId": visitor_data.get("cinc_lead_id", ""),  # If we have the CINC lead ID
+
+            # Agent Information
+            "agentName": agent_data.get("name", ""),
+            "agentEmail": agent_data.get("email", ""),
+            "agentCincId": agent_data.get("cinc_id", ""),
+
+            # Metadata
+            "site": visitor_data.get("site", ""),
+            "source": "New Homes Lead Tracker - Note",
+            "timestamp": datetime.now().isoformat()
+        }
+
+        # Send to Zapier webhook
+        response = requests.post(
+            ZAPIER_WEBHOOK_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+
+        response.raise_for_status()
+        return {"success": True, "zapier_response": response.status_code}
+
+    except requests.exceptions.RequestException as e:
+        return {"success": False, "error": str(e)}
+
 # API Endpoints
 
 @app.get("/")
@@ -1070,24 +1115,52 @@ def get_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_us
 
 @app.post("/visitors/{visitor_id}/notes")
 def add_note(visitor_id: int, note: NoteCreate, current_user: UserInDB = Depends(get_current_user)):
-    """Add timestamped note to visitor"""
+    """Add timestamped note to visitor and sync to CINC"""
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Verify visitor exists
-        visitor = cursor.execute("SELECT id FROM visitors WHERE id = ?", (visitor_id,)).fetchone()
+        # Get visitor data for sync
+        visitor = cursor.execute(
+            "SELECT * FROM visitors WHERE id = ?",
+            (visitor_id,)
+        ).fetchone()
         if not visitor:
             raise HTTPException(status_code=404, detail="Visitor not found")
 
+        # Get agent data for sync
+        agent = cursor.execute(
+            "SELECT id, name, cinc_id, email FROM agents WHERE id = ?",
+            (note.agent_id,)
+        ).fetchone()
+
+        # Insert note
         cursor.execute("""
             INSERT INTO visitor_notes (visitor_id, agent_id, note)
             VALUES (?, ?, ?)
         """, (visitor_id, note.agent_id, note.note))
 
-        cursor.execute("UPDATE visitors SET updated_at = ? WHERE id = ?",
-                      (datetime.now().isoformat(), visitor_id))
+        note_id = cursor.lastrowid
+        created_at = datetime.now().isoformat()
 
-        return {"id": cursor.lastrowid, "created_at": datetime.now().isoformat()}
+        cursor.execute("UPDATE visitors SET updated_at = ? WHERE id = ?",
+                      (created_at, visitor_id))
+
+        # Sync note to Zapier/CINC
+        note_data = {
+            "note": note.note,
+            "created_at": created_at
+        }
+        visitor_dict = dict(visitor)
+        agent_dict = dict(agent) if agent else {}
+
+        sync_result = sync_note_to_zapier(note_data, visitor_dict, agent_dict)
+
+        return {
+            "id": note_id,
+            "created_at": created_at,
+            "synced": sync_result["success"],
+            "sync_error": sync_result.get("error")
+        }
 
 @app.delete("/visitors/{visitor_id}")
 def delete_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_user)):
