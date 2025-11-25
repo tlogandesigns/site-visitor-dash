@@ -847,8 +847,9 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
                 is_local, buyer_state, occupation, occupation_other,
                 discovery_method, builders_requested, offer_on_table,
                 finalized_contracts, notes, price_range, location_looking,
-                location_current, agent_name, capturing_agent_id, site
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                location_current, agent_name, capturing_agent_id, created_by_user_id,
+                created_by_username, site
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             visitor.buyer_name, visitor.secondary_visitor, visitor.buyer_phone, visitor.buyer_email,
             visitor.first_visit, interested_in_str, timeline_str,
@@ -857,7 +858,8 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
             discovery_str, builders_requested_str, visitor.offer_on_table,
             visitor.finalized_contracts, visitor.notes, price_range_str,
             visitor.location_looking, visitor.location_current,
-            visitor.agent_name, capturing_agent_id, visitor.site
+            visitor.agent_name, capturing_agent_id, current_user.id,
+            current_user.username, visitor.site
         ))
 
         visitor_id = cursor.lastrowid

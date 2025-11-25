@@ -89,6 +89,8 @@ CREATE TABLE IF NOT EXISTS visitors (
 
     -- Agent Info
     capturing_agent_id INTEGER NOT NULL,
+    created_by_user_id INTEGER,  -- Which user created this visitor
+    created_by_username TEXT,  -- Username who created this (denormalized)
     site TEXT NOT NULL,
 
     -- Meta

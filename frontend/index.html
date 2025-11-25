@@ -231,7 +231,7 @@
         <nav class="navbar navbar-expand-lg navbar-dark">
             <div class="container-fluid">
                 <a class="navbar-brand" href="index.html">
-                    <i class="bi bi-house-door"></i> New Homes Lead Tracker v2.0
+                    <i class="bi bi-house-door"></i> New Homes Lead Tracker v0.2
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon"></span>
@@ -630,6 +630,30 @@
                                     <option value="6-12 months">6-12 months</option>
                                     <option value="12+ months">12+ months</option>
                                 </select>
+                            </div>
+
+                            <!-- Price Range -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Price Range</label>
+                                <select class="form-select" id="priceRange">
+                                    <option value="">Select...</option>
+                                    <option value="Under $200k">Under $200k</option>
+                                    <option value="$200k-$300k">$200k-$300k</option>
+                                    <option value="$300k-$400k">$300k-$400k</option>
+                                    <option value="$400k-$500k">$400k-$500k</option>
+                                    <option value="$500k-$600k">$500k-$600k</option>
+                                    <option value="$600k-$700k">$600k-$700k</option>
+                                    <option value="$700k-$800k">$700k-$800k</option>
+                                    <option value="$800k-$900k">$800k-$900k</option>
+                                    <option value="$900k-$1M">$900k-$1M</option>
+                                    <option value="$1M+">$1M+</option>
+                                </select>
+                            </div>
+
+                            <!-- Looking In -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Looking In (Cities/Areas)</label>
+                                <input type="text" class="form-control" id="locationLooking" placeholder="e.g., Augusta, North Augusta, Aiken">
                             </div>
 
                             <!-- Represented -->
@@ -1642,7 +1666,7 @@
                         <td>${visitor.purchase_timeline || '-'}</td>
                         <td>${visitor.price_range || '-'}</td>
                         <td>${visitor.site}</td>
-                        <td>${visitor.agent_name || '-'}</td>
+                        <td>${visitor.created_by_username || visitor.agent_name || '-'}</td>
                         <td>${cincBadge}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showVisitorDetail(${visitor.id})">
@@ -1709,6 +1733,12 @@
 
                 // Timeline
                 purchase_timeline: document.getElementById('purchaseTimeline').value || null,
+
+                // Price Range
+                price_range: document.getElementById('priceRange').value || null,
+
+                // Location Looking
+                location_looking: document.getElementById('locationLooking').value || null,
 
                 // Representation
                 cobroker_name: document.getElementById('cobrokerName').value || null,
@@ -1835,7 +1865,7 @@
                         <div class="col-md-6">
                             <h6 class="text-muted">Visit Information</h6>
                             <p><strong>Site:</strong> ${visitor.site}</p>
-                            <p><strong>Capturing Agent:</strong> ${visitor.agent_name || '-'}</p>
+                            <p><strong>Created By:</strong> ${visitor.created_by_username || visitor.agent_name || '-'}</p>
                             <p><strong>Visit Date:</strong> ${new Date(visitor.created_at).toLocaleString()}</p>
                             <p><strong>CINC Status:</strong> ${visitor.cinc_synced ? '<span class="badge badge-synced">Synced</span>' : '<span class="badge badge-pending">Pending</span>'}</p>
                         </div>
