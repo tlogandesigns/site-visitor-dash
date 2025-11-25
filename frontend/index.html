@@ -836,8 +836,9 @@
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Site *</label>
-                                <input type="text" class="form-control" id="site" list="siteList" placeholder="Enter or select site..." required>
-                                <datalist id="siteList"></datalist>
+                                <select class="form-select" id="site" required>
+                                    <option value="">Select site...</option>
+                                </select>
                             </div>
 
                             <!-- Capturing Agent - Only shown for admins/super_admins -->
@@ -1508,20 +1509,9 @@
                 loadStats();
             });
 
-            // Site input change in form (debounced to avoid filtering on every keystroke)
-            let siteInputTimeout;
-            document.getElementById('site').addEventListener('input', function() {
-                clearTimeout(siteInputTimeout);
-                siteInputTimeout = setTimeout(() => {
-                    if (this.value.length > 0) {
-                        filterAgentsBySite(this.value);
-                    }
-                }, 500);
-            });
+            // Site selection change in form
             document.getElementById('site').addEventListener('change', function() {
-                if (this.value.length > 0) {
-                    filterAgentsBySite(this.value);
-                }
+                filterAgentsBySite(this.value);
             });
         });
 
@@ -1539,14 +1529,15 @@
                 sites = data.sites;
 
                 const siteFilter = document.getElementById('siteFilter');
-                const siteList = document.getElementById('siteList');
+                const siteSelect = document.getElementById('site');
 
                 // Clear existing options except the first (placeholder)
                 while (siteFilter.options.length > 1) {
                     siteFilter.remove(1);
                 }
-                // Clear datalist
-                siteList.innerHTML = '';
+                while (siteSelect.options.length > 1) {
+                    siteSelect.remove(1);
+                }
 
                 // Add sites
                 sites.forEach(site => {
@@ -1557,7 +1548,8 @@
 
                     const option2 = document.createElement('option');
                     option2.value = site;
-                    siteList.appendChild(option2);
+                    option2.textContent = site;
+                    siteSelect.appendChild(option2);
                 });
             } catch (error) {
                 console.error('Error loading sites:', error);
