@@ -106,7 +106,12 @@ class PriceRange(str, Enum):
     RANGE_200K_300K = "$200k-$300k"
     RANGE_300K_400K = "$300k-$400k"
     RANGE_400K_500K = "$400k-$500k"
-    OVER_500K = "$500k+"
+    RANGE_500K_600K = "$500k-$600k"
+    RANGE_600K_700K = "$600k-$700k"
+    RANGE_700K_800K = "$700k-$800k"
+    RANGE_800K_900K = "$800k-$900k"
+    RANGE_900K_1M = "$900k-$1M"
+    OVER_1M = "$1M+"
 
 class SortField(str, Enum):
     CREATED_AT = "created_at"
