@@ -582,7 +582,8 @@
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Cell Phone</label>
-                                <input type="tel" class="form-control" id="buyerPhone">
+                                <input type="tel" class="form-control" id="buyerPhone" minlength="10" pattern="[0-9\-\(\)\s\+\.ext]{10,20}">
+                                <div class="invalid-feedback" id="phoneError">Phone number must be at least 10 digits</div>
                             </div>
 
                             <div class="col-md-6 mb-3">
@@ -1513,6 +1514,15 @@
             document.getElementById('site').addEventListener('change', function() {
                 filterAgentsBySite(this.value);
             });
+
+            // Phone number validation
+            const phoneInput = document.getElementById('buyerPhone');
+            phoneInput.addEventListener('input', function() {
+                validatePhoneNumber(this);
+            });
+            phoneInput.addEventListener('blur', function() {
+                validatePhoneNumber(this);
+            });
         });
 
         // Load sites
@@ -1588,6 +1598,32 @@
                 option.textContent = agent.name;
                 agentSelect.appendChild(option);
             });
+        }
+
+        // Validate phone number
+        function validatePhoneNumber(input) {
+            const value = input.value.trim();
+
+            // If empty, remove validation (not required field)
+            if (!value) {
+                input.classList.remove('is-invalid');
+                input.classList.remove('is-valid');
+                return true;
+            }
+
+            // Remove all non-digit characters for length check
+            const digitsOnly = value.replace(/\D/g, '');
+
+            // Must have at least 10 digits
+            if (digitsOnly.length < 10) {
+                input.classList.add('is-invalid');
+                input.classList.remove('is-valid');
+                return false;
+            } else {
+                input.classList.remove('is-invalid');
+                input.classList.add('is-valid');
+                return true;
+            }
         }
 
         // Load statistics
@@ -1692,6 +1728,13 @@
 
             if (!form.checkValidity()) {
                 form.reportValidity();
+                return;
+            }
+
+            // Validate phone number if provided
+            const phoneInput = document.getElementById('buyerPhone');
+            if (phoneInput.value && !validatePhoneNumber(phoneInput)) {
+                phoneInput.focus();
                 return;
             }
 
