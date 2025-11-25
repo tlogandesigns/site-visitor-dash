@@ -911,7 +911,7 @@ def list_visitors(
 ):
     """
     List all visitors with pagination, search, filter, and sort.
-    Users only see their own leads, admins and super_admins see all.
+    Users see all leads from their assigned sites, admins and super_admins see all.
 
     Parameters:
     - page: Page number (starts at 1)
@@ -941,10 +941,22 @@ def list_visitors(
         where_conditions = []
         params = []
 
-        # Role-based filtering
+        # Role-based filtering - users see all visitors from their assigned sites
         if current_user.role == "user":
-            where_conditions.append("capturing_agent_id = ?")
-            params.append(current_user.agent_id)
+            # Get sites assigned to this user's agent
+            agent_sites = cursor.execute(
+                "SELECT site FROM agent_sites WHERE agent_id = ?",
+                (current_user.agent_id,)
+            ).fetchall()
+
+            if agent_sites:
+                site_list = [s["site"] for s in agent_sites]
+                placeholders = ",".join(["?" for _ in site_list])
+                where_conditions.append(f"site IN ({placeholders})")
+                params.extend(site_list)
+            else:
+                # If agent has no assigned sites, show nothing
+                where_conditions.append("1 = 0")  # Always false condition
 
         # Site filter
         if site:
@@ -1013,7 +1025,7 @@ def list_visitors(
 
 @app.get("/visitors/{visitor_id}")
 def get_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_user)):
-    """Get single visitor with all notes. Users can only see their own leads."""
+    """Get single visitor with all notes. Users can only see leads from their assigned sites."""
     with get_db() as conn:
         cursor = conn.cursor()
 
@@ -1025,9 +1037,16 @@ def get_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_us
         if not visitor:
             raise HTTPException(status_code=404, detail="Visitor not found")
 
-        # Users can only view visitors they created
-        if current_user.role == "user" and visitor["capturing_agent_id"] != current_user.agent_id:
-            raise HTTPException(status_code=403, detail="Not authorized to view this visitor")
+        # Users can only view visitors from their assigned sites
+        if current_user.role == "user":
+            agent_sites = cursor.execute(
+                "SELECT site FROM agent_sites WHERE agent_id = ?",
+                (current_user.agent_id,)
+            ).fetchall()
+            allowed_sites = [s["site"] for s in agent_sites]
+
+            if visitor["site"] not in allowed_sites:
+                raise HTTPException(status_code=403, detail="Not authorized to view this visitor")
 
         notes = cursor.execute("""
             SELECT n.*, a.name as agent_name
@@ -1348,41 +1367,63 @@ def list_sites():
 
 @app.get("/stats")
 def get_stats(site: Optional[str] = None, current_user: UserInDB = Depends(get_current_user)):
-    """Get dashboard statistics. Users only see their own stats, admins and super_admins see all."""
+    """Get dashboard statistics. Users see stats from their assigned sites, admins and super_admins see all."""
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Users only see their own stats
+        # Users only see stats from their assigned sites
         if current_user.role == "user":
-            if site:
-                total_visitors = cursor.execute(
-                    "SELECT COUNT(*) as count FROM visitors WHERE site = ? AND capturing_agent_id = ?",
-                    (site, current_user.agent_id)
-                ).fetchone()["count"]
+            # Get sites assigned to this user's agent
+            agent_sites = cursor.execute(
+                "SELECT site FROM agent_sites WHERE agent_id = ?",
+                (current_user.agent_id,)
+            ).fetchall()
+            site_list = [s["site"] for s in agent_sites]
 
-                today_visitors = cursor.execute("""
-                    SELECT COUNT(*) as count FROM visitors
-                    WHERE site = ? AND capturing_agent_id = ? AND DATE(created_at) = DATE('now')
-                """, (site, current_user.agent_id)).fetchone()["count"]
+            if not site_list:
+                # No assigned sites, return zeros
+                total_visitors = 0
+                today_visitors = 0
+                cinc_synced = 0
+            elif site:
+                # Filter by specific site (if it's in their assigned sites)
+                if site in site_list:
+                    total_visitors = cursor.execute(
+                        "SELECT COUNT(*) as count FROM visitors WHERE site = ?",
+                        (site,)
+                    ).fetchone()["count"]
 
-                cinc_synced = cursor.execute(
-                    "SELECT COUNT(*) as count FROM visitors WHERE cinc_synced = 1 AND capturing_agent_id = ?",
-                    (current_user.agent_id,)
-                ).fetchone()["count"]
+                    today_visitors = cursor.execute("""
+                        SELECT COUNT(*) as count FROM visitors
+                        WHERE site = ? AND DATE(created_at) = DATE('now')
+                    """, (site,)).fetchone()["count"]
+
+                    cinc_synced = cursor.execute(
+                        "SELECT COUNT(*) as count FROM visitors WHERE cinc_synced = 1 AND site = ?",
+                        (site,)
+                    ).fetchone()["count"]
+                else:
+                    # Requested site not in their assigned sites
+                    total_visitors = 0
+                    today_visitors = 0
+                    cinc_synced = 0
             else:
+                # All their assigned sites
+                placeholders = ",".join(["?" for _ in site_list])
                 total_visitors = cursor.execute(
-                    "SELECT COUNT(*) as count FROM visitors WHERE capturing_agent_id = ?",
-                    (current_user.agent_id,)
+                    f"SELECT COUNT(*) as count FROM visitors WHERE site IN ({placeholders})",
+                    site_list
                 ).fetchone()["count"]
 
-                today_visitors = cursor.execute("""
-                    SELECT COUNT(*) as count FROM visitors
-                    WHERE capturing_agent_id = ? AND DATE(created_at) = DATE('now')
-                """, (current_user.agent_id,)).fetchone()["count"]
+                today_visitors = cursor.execute(
+                    f"""SELECT COUNT(*) as count FROM visitors
+                    WHERE site IN ({placeholders}) AND DATE(created_at) = DATE('now')""",
+                    site_list
+                ).fetchone()["count"]
 
                 cinc_synced = cursor.execute(
-                    "SELECT COUNT(*) as count FROM visitors WHERE cinc_synced = 1 AND capturing_agent_id = ?",
-                    (current_user.agent_id,)
+                    f"SELECT COUNT(*) as count FROM visitors WHERE cinc_synced = 1 AND site IN ({placeholders})",
+                    site_list
                 ).fetchone()["count"]
         else:  # admin sees all
             if site:
