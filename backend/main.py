@@ -495,6 +495,8 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
 
         # Prepare comprehensive payload for Zapier
         payload = {
+            "type": "lead",  # Distinguish from note updates
+
             # Buyer Information
             "firstName": first_name,
             "lastName": last_name,
