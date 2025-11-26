@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 New Homes Lead Tracker - A compliance-first lead management system for new home sales agents to capture, track, and sync visitor information with CINC CRM. Built with FastAPI backend, vanilla JavaScript frontend, and SQLite database, deployed via Docker Compose.
 
-**Authentication**: JWT-based authentication with two user roles:
-- **Admin**: Full access to all leads, can create users, manage agents, view all statistics
-- **User**: Limited access to only leads they created, linked to specific agent
+**Authentication**: JWT-based authentication with site-based access control:
+- **Admin/Super Admin**: Full access to all leads across all sites, can create users, manage agents, view all statistics
+- **User**: Site-based access - can view/edit all leads from sites their agent is assigned to (enables team collaboration within communities)
 
 ## Project Structure
 
@@ -260,3 +260,42 @@ Required in `.env` file:
 - **No users exist**: After first deployment, create admin user via `scripts/create_admin.py`
 - **Can't login**: Ensure database schema is initialized with users table. Run schema.sql if needed.
 - **Missing JWT_SECRET_KEY**: Set in .env file or uses default (INSECURE for production)
+
+## Recent Enhancements
+
+### Site-Based Access Control (2025)
+- Changed from agent-based to site-based visibility
+- Users can now see all leads from sites their agent is assigned to (not just their own)
+- Enables team collaboration within communities
+- Uses `agent_sites` junction table for many-to-many relationships
+- Helper function `get_user_accessible_sites()` centralizes access logic
+
+### Placeholder Generation for Missing Data
+- **Email**: Auto-generates `{uuid}@noemail.com` when no email provided
+  - Stored in database for consistent lead identification
+  - Enables CINC lead lookup and note updates
+- **Phone**: Sends `5555555555` to webhook when no phone provided
+  - Not stored in database (webhook only)
+  - Ensures CINC can process all leads
+
+### CINC Integration Enhancements
+- **Note Syncing**: Notes are automatically synced to CINC when added
+- **Type Differentiation**: Webhook payloads include `type` field:
+  - `type: "lead"` for new lead creation
+  - `type: "note"` for note updates
+- **Initial Notes**: Notes entered during visitor creation now appear in notes history
+
+### Frontend Improvements
+- Phone number validation with real-time feedback (min 10 digits)
+- Site field changed to required dropdown
+- Price range extended to $1M+
+- User tracking: Shows which user created each visitor
+
+### Code Quality
+- Migrated to Pydantic V2 validators (future-proof for V3)
+- Replaced deprecated `on_event` with modern lifespan handler
+- Consolidated site filtering logic into reusable helper function
+- Eliminated deprecation warnings
+
+### Database Migrations
+- `scripts/migrate_notes.py`: Migrates initial notes from `visitors.notes` to `visitor_notes` table
