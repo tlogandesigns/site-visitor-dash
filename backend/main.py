@@ -20,10 +20,38 @@ import io
 import os
 import re
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from collections import defaultdict
 
-app = FastAPI(title="New Homes Lead Tracker", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events"""
+    # Startup: Initialize database only if tables don't exist
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Check if visitors table exists
+        table_check = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='visitors'"
+        ).fetchone()
+
+        if not table_check:
+            # Database is empty, run schema
+            print("Initializing database schema...")
+            with open("schema.sql", "r") as f:
+                conn.executescript(f.read())
+            print("Database schema initialized successfully")
+        else:
+            print("Database already initialized")
+
+    # Initialize super admin
+    initialize_super_admin()
+
+    yield  # Application runs
+
+    # Shutdown: Add any cleanup here if needed
+    print("Application shutting down")
+
+app = FastAPI(title="New Homes Lead Tracker", version="1.0.0", lifespan=lifespan)
 
 # CORS for frontend access
 app.add_middleware(
@@ -1932,27 +1960,7 @@ def initialize_super_admin():
     except Exception as e:
         print(f"❌ Error initializing super admin: {e}")
 
-@app.on_event("startup")
-async def startup_event():
-    """Run on application startup"""
-    # Initialize database only if tables don't exist
-    with get_db() as conn:
-        cursor = conn.cursor()
-        # Check if visitors table exists
-        table_check = cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='visitors'"
-        ).fetchone()
-
-        if not table_check:
-            # Database is empty, run schema
-            print("Initializing database schema...")
-            with open("schema.sql", "r") as f:
-                conn.executescript(f.read())
-        else:
-            print("Database already initialized, skipping schema creation")
-
-    # Initialize super admin
-    initialize_super_admin()
+# Startup logic moved to lifespan context manager
 
 if __name__ == "__main__":
     import uvicorn
