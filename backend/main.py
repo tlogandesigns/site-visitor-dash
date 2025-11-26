@@ -494,6 +494,11 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
 
         # Prepare comprehensive payload for Zapier
+        # Use placeholder phone if none provided (some CRMs require phone number)
+        phone = visitor_data.get("buyer_phone", "").strip()
+        if not phone:
+            phone = "5555555555"
+
         payload = {
             "type": "lead",  # Distinguish from note updates
 
@@ -502,7 +507,7 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
             "lastName": last_name,
             "fullName": visitor_data["buyer_name"],
             "email": visitor_data.get("buyer_email", ""),
-            "phone": visitor_data.get("buyer_phone", ""),
+            "phone": phone,
 
             # Agent Information
             "agentName": agent_data.get("name", ""),
