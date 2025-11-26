@@ -934,6 +934,7 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
         # Sync to Zapier webhook
         visitor_dict = visitor.dict()
         visitor_dict["created_at"] = datetime.now().isoformat()
+        visitor_dict["buyer_email"] = buyer_email  # Use generated placeholder email if applicable
 
         agent_dict = {
             "name": agent["name"],
