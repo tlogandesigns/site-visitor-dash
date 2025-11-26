@@ -490,7 +490,9 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
 
         # Prepare comprehensive payload for Zapier
         # Use placeholder phone if none provided (some CRMs require phone number)
-        phone = visitor_data.get("buyer_phone", "").strip()
+        phone = visitor_data.get("buyer_phone", "")
+        if phone:
+            phone = phone.strip() if isinstance(phone, str) else str(phone)
         if not phone:
             phone = "5555555555"
 
