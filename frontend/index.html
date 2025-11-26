@@ -1940,8 +1940,13 @@
                 html += '</div>';
                 
                 document.getElementById('visitorDetailBody').innerHTML = html;
-                
-                const modal = new bootstrap.Modal(document.getElementById('visitorDetailModal'));
+
+                // Get existing modal instance or create new one
+                const modalElement = document.getElementById('visitorDetailModal');
+                let modal = bootstrap.Modal.getInstance(modalElement);
+                if (!modal) {
+                    modal = new bootstrap.Modal(modalElement);
+                }
                 modal.show();
                 
             } catch (error) {
