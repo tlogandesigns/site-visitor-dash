@@ -893,7 +893,7 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
 
         # Generate placeholder email if none provided (needed for CINC lead lookup/updates)
         buyer_email = visitor.buyer_email
-        if not buyer_email or not buyer_email.strip():
+        if not buyer_email or (isinstance(buyer_email, str) and not buyer_email.strip()):
             random_string = str(uuid.uuid4())[:8]  # Use first 8 chars of UUID
             buyer_email = f"{random_string}@noemail.com"
 
