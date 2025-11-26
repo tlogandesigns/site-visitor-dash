@@ -512,6 +512,23 @@ async def get_current_super_admin_user(current_user: UserInDB = Depends(get_curr
     return current_user
 
 # Helper Functions
+def get_user_accessible_sites(cursor, user: UserInDB) -> List[str]:
+    """
+    Get list of sites accessible to a user based on their role.
+    Returns all site names for admins, agent's assigned sites for regular users.
+    """
+    if user.role in ["admin", "super_admin"]:
+        # Admins can access all sites
+        return []  # Empty list means no filtering (all sites)
+
+    # Regular users - get their agent's assigned sites
+    agent_sites = cursor.execute(
+        "SELECT site FROM agent_sites WHERE agent_id = ? ORDER BY site",
+        (user.agent_id,)
+    ).fetchall()
+
+    return [s["site"] for s in agent_sites]
+
 def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
     """
     Send lead data to Zapier webhook
@@ -1043,21 +1060,15 @@ def list_visitors(
         params = []
 
         # Role-based filtering - users see all visitors from their assigned sites
-        if current_user.role == "user":
-            # Get sites assigned to this user's agent
-            agent_sites = cursor.execute(
-                "SELECT site FROM agent_sites WHERE agent_id = ?",
-                (current_user.agent_id,)
-            ).fetchall()
-
-            if agent_sites:
-                site_list = [s["site"] for s in agent_sites]
-                placeholders = ",".join(["?" for _ in site_list])
-                where_conditions.append(f"site IN ({placeholders})")
-                params.extend(site_list)
-            else:
-                # If agent has no assigned sites, show nothing
-                where_conditions.append("1 = 0")  # Always false condition
+        accessible_sites = get_user_accessible_sites(cursor, current_user)
+        if accessible_sites is not None and len(accessible_sites) > 0:
+            # Filter by specific sites
+            placeholders = ",".join(["?" for _ in accessible_sites])
+            where_conditions.append(f"site IN ({placeholders})")
+            params.extend(accessible_sites)
+        elif accessible_sites is not None and len(accessible_sites) == 0 and current_user.role == "user":
+            # User has no assigned sites, show nothing
+            where_conditions.append("1 = 0")  # Always false condition
 
         # Site filter
         if site:
@@ -1139,15 +1150,12 @@ def get_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_us
             raise HTTPException(status_code=404, detail="Visitor not found")
 
         # Users can only view visitors from their assigned sites
-        if current_user.role == "user":
-            agent_sites = cursor.execute(
-                "SELECT site FROM agent_sites WHERE agent_id = ?",
-                (current_user.agent_id,)
-            ).fetchall()
-            allowed_sites = [s["site"] for s in agent_sites]
-
-            if visitor["site"] not in allowed_sites:
+        accessible_sites = get_user_accessible_sites(cursor, current_user)
+        if accessible_sites is not None and len(accessible_sites) > 0:
+            if visitor["site"] not in accessible_sites:
                 raise HTTPException(status_code=403, detail="Not authorized to view this visitor")
+        elif accessible_sites is not None and len(accessible_sites) == 0 and current_user.role == "user":
+            raise HTTPException(status_code=403, detail="Not authorized to view this visitor")
 
         notes = cursor.execute("""
             SELECT n.*, a.name as agent_name
