@@ -19,6 +19,7 @@ import csv
 import io
 import os
 import re
+import uuid
 from contextlib import contextmanager
 from collections import defaultdict
 
@@ -896,6 +897,12 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
         discovery_str = visitor.discovery_method.value if visitor.discovery_method else None
         price_range_str = visitor.price_range.value if visitor.price_range else None
 
+        # Generate placeholder email if none provided (needed for CINC lead lookup/updates)
+        buyer_email = visitor.buyer_email
+        if not buyer_email or not buyer_email.strip():
+            random_string = str(uuid.uuid4())[:8]  # Use first 8 chars of UUID
+            buyer_email = f"{random_string}@noemail.com"
+
         # Insert visitor with all new fields
         cursor.execute("""
             INSERT INTO visitors (
@@ -908,7 +915,7 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
                 created_by_username, site
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            visitor.buyer_name, visitor.secondary_visitor, visitor.buyer_phone, visitor.buyer_email,
+            visitor.buyer_name, visitor.secondary_visitor, visitor.buyer_phone, buyer_email,
             visitor.first_visit, interested_in_str, timeline_str,
             visitor.represented, visitor.cobroker_name, visitor.is_local,
             visitor.buyer_state, occupation_str, visitor.occupation_other,
