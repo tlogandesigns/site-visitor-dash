@@ -274,15 +274,9 @@ class VisitorCreate(BaseModel):
     @root_validator(skip_on_failure=True)
     def validate_conditional_fields(cls, values):
         """Validate conditional requirements based on represented status"""
-        represented = values.get('represented', False)
-
-        # If not represented, email and phone are required
-        if not represented:
-            if not values.get('buyer_email') and not values.get('buyer_phone'):
-                raise ValueError('Either email or phone is required when buyer is not represented')
-
-        # If represented, cobroker_name should be provided
-        # (optional validation - can be added later)
+        # Note: Email and phone are no longer required as placeholders are auto-generated
+        # - Empty email generates: {uuid}@noemail.com
+        # - Empty phone generates: 5555555555 (for webhook only)
 
         # If not local, buyer_state should be provided
         is_local = values.get('is_local', True)
