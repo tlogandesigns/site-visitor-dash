@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, Field, validator, root_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -168,13 +168,15 @@ class UserCreate(BaseModel):
     role: UserRole
     agent_id: Optional[int] = Field(None, gt=0)
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def username_alphanumeric(cls, v):
         if not re.match(r'^[a-zA-Z0-9_-]+$', v):
             raise ValueError('Username must contain only letters, numbers, underscores, and hyphens')
         return v.lower()
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def password_strength(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters')
@@ -191,7 +193,8 @@ class UserUpdate(BaseModel):
     agent_id: Optional[int] = Field(None, gt=0)
     active: Optional[bool] = None
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def password_strength(cls, v):
         if v is None:
             return v
@@ -261,36 +264,37 @@ class VisitorCreate(BaseModel):
     location_current: Optional[str] = Field(None, max_length=255)
     agent_name: Optional[str] = Field(None, max_length=255)
 
-    @validator('buyer_name')
+    @field_validator('buyer_name')
+    @classmethod
     def validate_buyer_name(cls, v):
         return sanitize_string(v, 255)
 
-    @validator('buyer_phone')
+    @field_validator('buyer_phone')
+    @classmethod
     def validate_buyer_phone(cls, v):
         if v:
             return validate_phone_number(v)
         return v
 
-    @root_validator(skip_on_failure=True)
-    def validate_conditional_fields(cls, values):
+    @model_validator(mode='after')
+    def validate_conditional_fields(self):
         """Validate conditional requirements based on represented status"""
         # Note: Email and phone are no longer required as placeholders are auto-generated
         # - Empty email generates: {uuid}@noemail.com
         # - Empty phone generates: 5555555555 (for webhook only)
 
         # If not local, buyer_state should be provided
-        is_local = values.get('is_local', True)
-        if not is_local and not values.get('buyer_state'):
+        if not self.is_local and not self.buyer_state:
             raise ValueError('State is required when buyer is not local')
 
         # If occupation is "Other", occupation_other should be provided
-        occupation = values.get('occupation')
-        if occupation == Occupation.OTHER and not values.get('occupation_other'):
+        if self.occupation == Occupation.OTHER and not self.occupation_other:
             raise ValueError('Please specify occupation when "Other" is selected')
 
-        return values
+        return self
 
-    @validator('interested_in')
+    @field_validator('interested_in')
+    @classmethod
     def validate_interested_in(cls, v):
         """Validate interested_in list"""
         if v:
@@ -300,7 +304,8 @@ class VisitorCreate(BaseModel):
                     raise ValueError(f'Invalid interest option: {item}')
         return v
 
-    @validator('builders_requested')
+    @field_validator('builders_requested')
+    @classmethod
     def validate_builders(cls, v):
         """Validate builders_requested list"""
         if v:
@@ -310,13 +315,15 @@ class VisitorCreate(BaseModel):
                     raise ValueError(f'Invalid builder option: {item}')
         return v
 
-    @validator('location_looking', 'location_current', 'agent_name', 'site', 'cobroker_name', 'buyer_state', 'occupation_other')
+    @field_validator('location_looking', 'location_current', 'agent_name', 'site', 'cobroker_name', 'buyer_state', 'occupation_other')
+    @classmethod
     def validate_strings(cls, v):
         if v is None:
             return v
         return sanitize_string(v, 255)
 
-    @validator('notes')
+    @field_validator('notes')
+    @classmethod
     def validate_notes(cls, v):
         if v is None:
             return v
@@ -327,7 +334,8 @@ class NoteCreate(BaseModel):
     agent_id: int = Field(..., gt=0)
     note: str = Field(..., min_length=1, max_length=2000)
 
-    @validator('note')
+    @field_validator('note')
+    @classmethod
     def validate_note(cls, v):
         return sanitize_string(v, 2000)
 
@@ -338,11 +346,13 @@ class AgentCreate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, max_length=20)
 
-    @validator('name', 'site')
+    @field_validator('name', 'site')
+    @classmethod
     def validate_strings(cls, v):
         return sanitize_string(v, 255)
 
-    @validator('phone')
+    @field_validator('phone')
+    @classmethod
     def validate_phone(cls, v):
         if v is None:
             return v
