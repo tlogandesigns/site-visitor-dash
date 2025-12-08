@@ -1170,6 +1170,36 @@ def get_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_us
             "notes": [dict(n) for n in notes]
         }
 
+@app.get("/visitors/check/name")
+def check_visitor_name(name: str, current_user: UserInDB = Depends(get_current_user)):
+    """
+    Check if a visitor with the given name already exists in the database.
+    Returns matching visitors with their details.
+    """
+    if not name or len(name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Name must be at least 2 characters")
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Search for visitors with similar names (case-insensitive)
+        search_pattern = f"%{name.strip()}%"
+
+        visitors = cursor.execute("""
+            SELECT id, buyer_name, buyer_phone, buyer_email, site, created_at,
+                   capturing_agent_id, agent_name
+            FROM visitor_details
+            WHERE LOWER(buyer_name) LIKE LOWER(?)
+            ORDER BY created_at DESC
+            LIMIT 10
+        """, (search_pattern,)).fetchall()
+
+        return {
+            "exists": len(visitors) > 0,
+            "count": len(visitors),
+            "matches": [dict(v) for v in visitors]
+        }
+
 @app.post("/visitors/{visitor_id}/notes")
 def add_note(visitor_id: int, note: NoteCreate, current_user: UserInDB = Depends(get_current_user)):
     """Add timestamped note to visitor and sync to CINC"""

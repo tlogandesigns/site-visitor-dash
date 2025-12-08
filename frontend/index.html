@@ -567,7 +567,13 @@
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Name</label>
-                                <input type="text" class="form-control" id="buyerName">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="buyerName">
+                                    <button class="btn btn-outline-secondary" type="button" id="checkNameBtn" title="Check if visitor already exists">
+                                        <i class="bi bi-search"></i> Check
+                                    </button>
+                                </div>
+                                <div id="nameCheckFeedback" class="mt-2"></div>
                             </div>
 
                             <div class="col-md-6 mb-3">
@@ -1523,6 +1529,19 @@
             phoneInput.addEventListener('blur', function() {
                 validatePhoneNumber(this);
             });
+
+            // Check visitor name button
+            document.getElementById('checkNameBtn').addEventListener('click', function() {
+                checkVisitorName();
+            });
+
+            // Also check name on Enter key in the name field
+            document.getElementById('buyerName').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    checkVisitorName();
+                }
+            });
         });
 
         // Load sites
@@ -1718,6 +1737,97 @@
                 console.error('Error loading visitors:', error);
                 loading.style.display = 'none';
                 tableBody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
+            }
+        }
+
+        // Check if visitor name already exists
+        async function checkVisitorName() {
+            const nameInput = document.getElementById('buyerName');
+            const checkBtn = document.getElementById('checkNameBtn');
+            const feedbackDiv = document.getElementById('nameCheckFeedback');
+            const name = nameInput.value.trim();
+
+            // Clear previous feedback
+            feedbackDiv.innerHTML = '';
+
+            if (!name || name.length < 2) {
+                feedbackDiv.innerHTML = '<div class="alert alert-warning py-2 px-3 mb-0"><small>Please enter at least 2 characters to check</small></div>';
+                return;
+            }
+
+            // Show loading state
+            const originalBtnHTML = checkBtn.innerHTML;
+            checkBtn.disabled = true;
+            checkBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Checking...';
+
+            try {
+                const response = await fetch(`${API_BASE}/visitors/check/name?name=${encodeURIComponent(name)}`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.exists && data.count > 0) {
+                    // Visitor(s) found - show warning with matches
+                    let matchesHTML = data.matches.map(match => {
+                        const createdDate = new Date(match.created_at).toLocaleDateString();
+                        return `
+                            <li class="mb-2">
+                                <strong>${match.buyer_name}</strong><br>
+                                <small class="text-muted">
+                                    ${match.buyer_phone ? `Phone: ${match.buyer_phone} | ` : ''}
+                                    ${match.buyer_email ? `Email: ${match.buyer_email} | ` : ''}
+                                    Site: ${match.site} |
+                                    Agent: ${match.agent_name || 'Unknown'} |
+                                    Added: ${createdDate}
+                                </small>
+                            </li>
+                        `;
+                    }).join('');
+
+                    feedbackDiv.innerHTML = `
+                        <div class="alert alert-warning py-2 px-3 mb-0">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                <div>
+                                    <strong>⚠️ Potential Duplicate Found</strong>
+                                    <p class="mb-2 mt-1"><small>Found ${data.count} visitor(s) with similar name(s):</small></p>
+                                    <ul class="mb-0 ps-3">
+                                        ${matchesHTML}
+                                    </ul>
+                                    <p class="mb-0 mt-2"><small>Please verify this is a new visitor before submitting.</small></p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // No matches - visitor is new
+                    feedbackDiv.innerHTML = `
+                        <div class="alert alert-success py-2 px-3 mb-0">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <strong>✓ New Visitor Confirmed</strong>
+                            <small class="d-block mt-1">No existing records found for this name.</small>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error checking visitor name:', error);
+                feedbackDiv.innerHTML = `
+                    <div class="alert alert-danger py-2 px-3 mb-0">
+                        <i class="bi bi-x-circle-fill me-2"></i>
+                        <strong>Error</strong>
+                        <small class="d-block mt-1">Unable to check visitor name. Please try again.</small>
+                    </div>
+                `;
+            } finally {
+                // Restore button state
+                checkBtn.disabled = false;
+                checkBtn.innerHTML = originalBtnHTML;
             }
         }
 
