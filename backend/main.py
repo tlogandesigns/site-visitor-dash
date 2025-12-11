@@ -1791,6 +1791,8 @@ def get_visitor_report(
                 v.builders_requested,
                 v.offer_on_table,
                 v.finalized_contracts,
+                v.cobroker_name,
+                v.is_local,
                 v.notes,
                 v.site,
                 v.cinc_synced,
@@ -1816,6 +1818,8 @@ def get_visitor_report(
         overall_builders = defaultdict(int)
         overall_offer = {"Yes": 0, "No": 0}
         overall_contracts = {"Yes": 0, "No": 0}
+        overall_cobroker = {"Yes": 0, "No": 0}
+        overall_local = {"Yes": 0, "No": 0}
         overall_site_totals = defaultdict(int)
         overall_agent_totals = defaultdict(int)
         site_map = {}
@@ -1855,6 +1859,12 @@ def get_visitor_report(
 
             contract_label = "Yes" if row["finalized_contracts"] else "No"
             overall_contracts[contract_label] += 1
+
+            cobroker_label = "Yes" if row["cobroker_name"] else "No"
+            overall_cobroker[cobroker_label] += 1
+
+            local_label = "Yes" if row["is_local"] else "No"
+            overall_local[local_label] += 1
 
             interested_in_values = [
                 item.strip() for item in (row["interested_in"] or "").split(",") if item.strip()
@@ -1956,6 +1966,14 @@ def get_visitor_report(
                 "finalized_contracts": [
                     {"label": "Yes", "count": overall_contracts["Yes"]},
                     {"label": "No", "count": overall_contracts["No"]},
+                ],
+                "cobroker": [
+                    {"label": "Yes", "count": overall_cobroker["Yes"]},
+                    {"label": "No", "count": overall_cobroker["No"]},
+                ],
+                "local": [
+                    {"label": "Yes", "count": overall_local["Yes"]},
+                    {"label": "No", "count": overall_local["No"]},
                 ],
                 "sites": _format_breakdown(overall_site_totals),
                 "agents": _format_breakdown(overall_agent_totals),

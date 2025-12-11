@@ -1111,9 +1111,23 @@
 
             addSectionTitle('Key Insights');
 
+            // Transform first_visit data to Yes/No format
+            function transformFirstVisitData(breakdown) {
+                const normalized = normalizeBreakdown(breakdown);
+                return normalized.map(item => {
+                    if (item.label.toLowerCase().includes('first') || item.label.toLowerCase() === 'yes') {
+                        return { label: 'Yes', count: item.count };
+                    } else {
+                        return { label: 'No', count: item.count };
+                    }
+                });
+            }
+
             const chartRequests = [
-                { title: 'First Visit Status', kind: 'pie', breakdown: normalizeBreakdown(aggregates.first_visit) },
-                { title: 'Interested In', kind: 'pie', breakdown: normalizeBreakdown(aggregates.interested_in) },
+                { title: 'First Visit to Community', kind: 'pie', breakdown: transformFirstVisitData(aggregates.first_visit) },
+                { title: 'Which product is the buyer interested in?', kind: 'pie', breakdown: normalizeBreakdown(aggregates.interested_in) },
+                { title: 'Did the buyer have a Co-broker', kind: 'pie', breakdown: normalizeBreakdown(aggregates.cobroker) },
+                { title: 'Is the Buyer Local', kind: 'pie', breakdown: normalizeBreakdown(aggregates.local) },
                 { title: 'Timeline', kind: 'pie', breakdown: normalizeBreakdown(aggregates.timeline) },
                 { title: 'How did buyer first learn about the community?', kind: 'bar-horizontal', breakdown: normalizeBreakdown(aggregates.discovery) },
                 { title: 'Builders Requested', kind: 'pie', breakdown: normalizeBreakdown(aggregates.builders_requested) },
