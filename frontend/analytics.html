@@ -1124,13 +1124,13 @@
             }
 
             const chartRequests = [
-                { title: 'First Visit to Community', kind: 'pie', breakdown: transformFirstVisitData(aggregates.first_visit) },
+                { title: 'First Visit to Community?', kind: 'pie', breakdown: transformFirstVisitData(aggregates.first_visit) },
                 { title: 'Which product is the buyer interested in?', kind: 'pie', breakdown: normalizeBreakdown(aggregates.interested_in) },
-                { title: 'Did the buyer have a Co-broker', kind: 'pie', breakdown: normalizeBreakdown(aggregates.cobroker) },
-                { title: 'Is the Buyer Local', kind: 'pie', breakdown: normalizeBreakdown(aggregates.local) },
-                { title: 'Timeline', kind: 'pie', breakdown: normalizeBreakdown(aggregates.timeline) },
-                { title: 'How did buyer first learn about the community?', kind: 'bar-horizontal', breakdown: normalizeBreakdown(aggregates.discovery) },
-                { title: 'Builders Requested', kind: 'pie', breakdown: normalizeBreakdown(aggregates.builders_requested) },
+                { title: 'Did the buyer have a Co-broker?', kind: 'pie', breakdown: normalizeBreakdown(aggregates.cobroker) },
+                { title: 'Is the Buyer Local?', kind: 'pie', breakdown: normalizeBreakdown(aggregates.local) },
+                { title: 'Purchase Timeline', kind: 'pie', breakdown: normalizeBreakdown(aggregates.timeline) },
+                { title: 'First learn about the community?', kind: 'bar-horizontal', breakdown: normalizeBreakdown(aggregates.discovery) },
+                { title: 'Builders Preference', kind: 'pie', breakdown: normalizeBreakdown(aggregates.builders_requested) },
                 {
                     title: 'Deal Progress',
                     kind: 'double-bar',
