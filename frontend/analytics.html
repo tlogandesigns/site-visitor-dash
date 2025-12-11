@@ -789,13 +789,34 @@
             return normalizeBreakdown(items).some(item => item.count > 0);
         }
 
-        function getPalette(length) {
-            if (length <= REPORT_COLOR_PALETTE.length) {
-                return REPORT_COLOR_PALETTE.slice(0, length);
-            }
-            const colors = [...REPORT_COLOR_PALETTE];
-            while (colors.length < length) {
-                colors.push(REPORT_COLOR_PALETTE[colors.length % REPORT_COLOR_PALETTE.length]);
+        // Custom builder colors
+        const BUILDER_COLORS = {
+            'Bill Beazley Homes': '#009E73',  // Green
+            'Beazley': '#009E73',  // Green
+            'Pierwood Construction': '#0072B2',  // Blue
+            'Pierwood': '#0072B2',  // Blue
+            'Crawford Construction': '#F0E442',  // Yellow
+            'Crawford': '#F0E442'  // Yellow
+        };
+
+        function getPalette(length, labels = []) {
+            // Check if this is a builders chart - if so, use custom colors
+            const colors = [];
+            for (let i = 0; i < length; i++) {
+                const label = labels[i];
+                // Check if label matches a builder name (case-insensitive partial match)
+                let customColor = null;
+                if (label) {
+                    const labelLower = label.toLowerCase();
+                    for (const [builderName, color] of Object.entries(BUILDER_COLORS)) {
+                        if (labelLower.includes(builderName.toLowerCase()) ||
+                            builderName.toLowerCase().includes(labelLower)) {
+                            customColor = color;
+                            break;
+                        }
+                    }
+                }
+                colors.push(customColor || REPORT_COLOR_PALETTE[i % REPORT_COLOR_PALETTE.length]);
             }
             return colors;
         }
@@ -1237,7 +1258,7 @@
                             labels,
                             datasets: [{
                                 data: counts,
-                                backgroundColor: getPalette(labels.length),
+                                backgroundColor: getPalette(labels.length, labels),
                                 borderColor: '#ffffff',
                                 borderWidth: 1
                             }]
