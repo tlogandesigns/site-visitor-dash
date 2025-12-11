@@ -759,9 +759,18 @@
             `;
         }
 
+        // Colorblind-friendly palette (Okabe-Ito inspired with high contrast)
         const REPORT_COLOR_PALETTE = [
-            '#670038', '#8a0049', '#a50062', '#c0007b', '#db0094',
-            '#4a0028', '#5a0032', '#6a003c', '#7a0046', '#8a0050'
+            '#0072B2', // Blue
+            '#E69F00', // Orange
+            '#009E73', // Bluish green
+            '#D55E00', // Vermillion
+            '#CC79A7', // Reddish purple
+            '#56B4E9', // Sky blue
+            '#F0E442', // Yellow
+            '#882255', // Dark purple
+            '#117733', // Dark green
+            '#AA4499'  // Purple
         ];
 
         function normalizeBreakdown(items) {
@@ -954,9 +963,10 @@
                 return;
             }
 
-            const accentColor = [103, 0, 56];
-            const textColor = [34, 34, 34];
-            const mutedColor = [120, 120, 120];
+            // High contrast colors for accessibility
+            const accentColor = [0, 51, 102];  // Dark blue (#003366) - better contrast than cabernet
+            const textColor = [0, 0, 0];  // Pure black for maximum contrast
+            const mutedColor = [85, 85, 85];  // Darker gray for better readability
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
             const marginX = 48;
@@ -1065,7 +1075,7 @@
                         fontSize: 12
                     },
                     alternateRowStyles: {
-                        fillColor: [249, 242, 246]
+                        fillColor: [240, 240, 240]  // Light gray for better contrast
                     },
                     columnStyles: {
                         0: { cellWidth: 24 },
@@ -1149,13 +1159,13 @@
                                 {
                                     label: 'Yes',
                                     data: [offerMap.Yes || 0, contractMap.Yes || 0],
-                                    backgroundColor: '#670038',
+                                    backgroundColor: '#0072B2',  // Blue - colorblind friendly
                                     borderRadius: 6
                                 },
                                 {
                                     label: 'No',
                                     data: [offerMap.No || 0, contractMap.No || 0],
-                                    backgroundColor: '#d8b8c9',
+                                    backgroundColor: '#E69F00',  // Orange - high contrast with blue
                                     borderRadius: 6
                                 }
                             ]
@@ -1224,7 +1234,7 @@
                             datasets: [{
                                 label: 'Leads',
                                 data: counts,
-                                backgroundColor: '#670038',
+                                backgroundColor: '#0072B2',  // Blue for accessibility
                                 borderRadius: 6
                             }]
                         },
