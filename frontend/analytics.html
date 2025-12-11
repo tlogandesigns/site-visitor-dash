@@ -979,12 +979,12 @@
             function addSectionTitle(title) {
                 ensureSpace(28);
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
+                doc.setFontSize(18);
                 doc.setTextColor(...accentColor);
                 doc.text(title, marginX, cursorY);
                 cursorY += 22;
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(11);
+                doc.setFontSize(12);
                 doc.setTextColor(...textColor);
             }
 
@@ -996,7 +996,7 @@
                 cursorY += 28;
 
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(11);
+                doc.setFontSize(12);
                 doc.setTextColor(...textColor);
                 doc.text(`Date Range: ${report.date_range.start} – ${report.date_range.end}`, marginX, cursorY);
                 cursorY += 16;
@@ -1018,7 +1018,7 @@
             ];
 
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
+            doc.setFontSize(13);
             doc.setTextColor(...textColor);
 
             summaryItems.forEach(item => {
@@ -1051,7 +1051,7 @@
                     startY: cursorY,
                     margin: { left: marginX, right: marginX },
                     styles: {
-                        fontSize: 9,
+                        fontSize: 12,
                         textColor: textColor,
                         lineColor: [220, 210, 215],
                         lineWidth: 0.5,
@@ -1061,7 +1061,8 @@
                     headStyles: {
                         fillColor: accentColor,
                         textColor: [255, 255, 255],
-                        fontStyle: 'bold'
+                        fontStyle: 'bold',
+                        fontSize: 12
                     },
                     alternateRowStyles: {
                         fillColor: [249, 242, 246]
@@ -1078,7 +1079,7 @@
                     theme: 'grid',
                     didDrawPage: () => {
                         doc.setFont('helvetica', 'normal');
-                        doc.setFontSize(9);
+                        doc.setFontSize(12);
                         doc.setTextColor(...mutedColor);
                         doc.text(
                             `Visitor Performance Report • ${report.date_range.start} – ${report.date_range.end}`,
@@ -1261,12 +1262,12 @@
                 const x = marginX + chartColumn * (chartDisplayWidth + chartSpacing);
 
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(12);
+                doc.setFontSize(14);
                 doc.setTextColor(...accentColor);
                 doc.text(output.title, x, cursorY);
 
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(10);
+                doc.setFontSize(12);
                 doc.setTextColor(...textColor);
 
                 if (output.noData) {
@@ -1300,17 +1301,17 @@
                 notes.forEach(note => {
                     ensureSpace(40);
                     doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(11);
+                    doc.setFontSize(12);
                     doc.setTextColor(...accentColor);
                     doc.text(note.header, marginX, cursorY);
                     cursorY += 14;
 
                     doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(10);
+                    doc.setFontSize(12);
                     doc.setTextColor(...textColor);
                     const wrapped = doc.splitTextToSize(note.body, pageWidth - marginX * 2);
                     doc.text(wrapped, marginX, cursorY);
-                    cursorY += wrapped.length * 12 + 16;
+                    cursorY += wrapped.length * 14 + 16;
                 });
             }
 
