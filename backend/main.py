@@ -1526,10 +1526,11 @@ def deactivate_agent(
 
 @app.get("/sites")
 def list_sites():
-    """Get unique list of sites/communities"""
+    """Get unique list of all sites/communities from agent_sites table"""
     with get_db() as conn:
         cursor = conn.cursor()
-        sites = cursor.execute("SELECT DISTINCT site FROM visitors WHERE site IS NOT NULL ORDER BY site").fetchall()
+        # Get all unique sites from agent_sites table (includes all configured sites)
+        sites = cursor.execute("SELECT DISTINCT site FROM agent_sites WHERE site IS NOT NULL ORDER BY site").fetchall()
         return {"sites": [s["site"] for s in sites]}
 
 @app.get("/stats")

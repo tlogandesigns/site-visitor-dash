@@ -11,6 +11,7 @@
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
@@ -287,6 +288,11 @@
         })();
 
         console.log('API_BASE configured as:', API_BASE);
+
+        // Disable datalabels plugin by default (we'll enable it only for PDF pie charts)
+        Chart.defaults.set('plugins.datalabels', {
+            display: false
+        });
 
         // Global state
         let currentUser = null;
@@ -1272,6 +1278,18 @@
                                             size: 20
                                         },
                                         padding: 15
+                                    }
+                                },
+                                datalabels: {
+                                    display: true,  // Enable for PDF pie charts
+                                    color: '#ffffff',
+                                    font: {
+                                        size: 24,
+                                        weight: 'bold'
+                                    },
+                                    formatter: (value, context) => {
+                                        // Only show label if value is greater than 0
+                                        return value > 0 ? value : '';
                                     }
                                 }
                             }
