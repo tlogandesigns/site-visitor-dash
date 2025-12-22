@@ -976,12 +976,20 @@
                 }))
             );
 
-            const notes = allVisitors
-                .filter(visitor => visitor.notes && visitor.notes.trim())
-                .map(visitor => ({
-                    header: `${visitor.buyer_name || 'Unknown'} • ${visitor.site || 'Unassigned'} • ${visitor.capturing_agent || 'Unassigned'}`,
-                    body: visitor.notes.trim()
-                }));
+            // Extract all timestamped notes from all visitors
+            const notes = [];
+            allVisitors.forEach(visitor => {
+                if (visitor.notes && Array.isArray(visitor.notes) && visitor.notes.length > 0) {
+                    visitor.notes.forEach(note => {
+                        notes.push({
+                            header: `${visitor.buyer_name || 'Unknown'} • ${visitor.site || 'Unassigned'}`,
+                            timestamp: note.created_at || '',
+                            agent: note.agent_name || 'Unknown',
+                            body: note.note || ''
+                        });
+                    });
+                }
+            });
 
             const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' });
 
@@ -1399,13 +1407,24 @@
                 cursorY += 20;
             } else {
                 notes.forEach(note => {
-                    ensureSpace(40);
+                    ensureSpace(50);
+
+                    // Header with buyer name and site
                     doc.setFont('helvetica', 'bold');
                     doc.setFontSize(12);
                     doc.setTextColor(...accentColor);
                     doc.text(note.header, marginX, cursorY);
                     cursorY += 14;
 
+                    // Timestamp and agent name
+                    doc.setFont('helvetica', 'italic');
+                    doc.setFontSize(10);
+                    doc.setTextColor(...mutedColor);
+                    const timestamp = note.timestamp ? new Date(note.timestamp).toLocaleString() : 'Unknown date';
+                    doc.text(`${timestamp} • ${note.agent}`, marginX, cursorY);
+                    cursorY += 14;
+
+                    // Note body
                     doc.setFont('helvetica', 'normal');
                     doc.setFontSize(12);
                     doc.setTextColor(...textColor);

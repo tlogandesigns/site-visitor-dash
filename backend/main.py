@@ -1879,6 +1879,25 @@ def get_visitor_report(
             for value in builder_values:
                 overall_builders[value] += 1
 
+            # Fetch timestamped notes from visitor_notes table
+            visitor_notes = cursor.execute("""
+                SELECT n.note, n.created_at, a.name as agent_name
+                FROM visitor_notes n
+                LEFT JOIN agents a ON n.agent_id = a.id
+                WHERE n.visitor_id = ?
+                ORDER BY n.created_at DESC
+            """, (row["id"],)).fetchall()
+
+            # Convert notes to list of dicts
+            notes_list = [
+                {
+                    "note": note["note"],
+                    "created_at": note["created_at"],
+                    "agent_name": note["agent_name"] or "Unknown"
+                }
+                for note in visitor_notes
+            ]
+
             visitor = {
                 "id": row["id"],
                 "buyer_name": row["buyer_name"],
@@ -1892,7 +1911,7 @@ def get_visitor_report(
                 "builders_requested": builder_values,
                 "offer_on_table": bool(row["offer_on_table"]),
                 "finalized_contracts": bool(row["finalized_contracts"]),
-                "notes": row["notes"],
+                "notes": notes_list,  # Now includes timestamped notes from visitor_notes table
                 "site": site_name,
                 "cinc_synced": bool(row["cinc_synced"]),
                 "created_at": row["created_at"],
