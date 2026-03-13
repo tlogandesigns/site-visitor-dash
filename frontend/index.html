@@ -340,8 +340,9 @@
 
         <!-- Visitors Table -->
         <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Recent Visitors</h5>
+            <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                <h5 class="mb-0 flex-shrink-0">Recent Visitors</h5>
+                <input type="search" id="visitorSearch" class="form-control form-control-sm w-auto" placeholder="Search by name, phone, email…" style="min-width:220px;">
             </div>
             <div class="card-body">
                 <div class="loading" id="tableLoading">
@@ -1516,6 +1517,13 @@
                 loadStats();
             });
 
+            // Visitor search (debounced)
+            let visitorSearchTimer;
+            document.getElementById('visitorSearch').addEventListener('input', function() {
+                clearTimeout(visitorSearchTimer);
+                visitorSearchTimer = setTimeout(loadVisitors, 300);
+            });
+
             // Site selection change in form
             document.getElementById('site').addEventListener('change', function() {
                 filterAgentsBySite(this.value);
@@ -1677,7 +1685,12 @@
             tableBody.innerHTML = '';
             
             const site = document.getElementById('siteFilter').value;
-            const url = site ? `${API_BASE}/visitors?site=${encodeURIComponent(site)}` : `${API_BASE}/visitors`;
+            const search = document.getElementById('visitorSearch').value.trim();
+            const params = new URLSearchParams();
+            if (site) params.set('site', site);
+            if (search) params.set('search', search);
+            const query = params.toString();
+            const url = query ? `${API_BASE}/visitors?${query}` : `${API_BASE}/visitors`;
 
             try {
                 const response = await fetch(url, {
