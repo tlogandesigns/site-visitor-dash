@@ -126,8 +126,9 @@ CREATE INDEX IF NOT EXISTS idx_visitors_capturing_agent ON visitors(capturing_ag
 
 -- View for easy querying
 CREATE VIEW IF NOT EXISTS visitor_details AS
-SELECT 
+SELECT
     v.*,
+    v.agent_name as representing_agent_name,
     a.name as agent_name,
     a.cinc_id as agent_cinc_id,
     (SELECT COUNT(*) FROM visitor_notes WHERE visitor_id = v.id) as note_count,
