@@ -513,7 +513,7 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
         # Update last login
         cursor.execute(
             "UPDATE users SET last_login = ? WHERE id = ?",
-            (datetime.now().isoformat(), user["id"])
+            (datetime.now(timezone.utc).isoformat(), user["id"])
         )
 
         return {
@@ -671,8 +671,8 @@ def sync_to_zapier(visitor_data: dict, agent_data: dict) -> dict:
 
             # Metadata
             "source": "New Homes Lead Tracker",
-            "timestamp": datetime.now().isoformat(),
-            "visitDate": visitor_data.get("created_at", datetime.now().isoformat())
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "visitDate": visitor_data.get("created_at", datetime.now(timezone.utc).isoformat())
         }
 
         # Send to Zapier webhook
@@ -703,7 +703,7 @@ def sync_note_to_zapier(note_data: dict, visitor_data: dict, agent_data: dict) -
         payload = {
             "type": "note",  # Distinguish from lead creation
             "note": note_data["note"],
-            "noteTimestamp": note_data.get("created_at", datetime.now().isoformat()),
+            "noteTimestamp": note_data.get("created_at", datetime.now(timezone.utc).isoformat()),
 
             # Visitor/Lead Information
             "leadName": visitor_data.get("buyer_name", ""),
@@ -719,7 +719,7 @@ def sync_note_to_zapier(note_data: dict, visitor_data: dict, agent_data: dict) -
             # Metadata
             "site": visitor_data.get("site", ""),
             "source": "New Homes Lead Tracker - Note",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # Send to Zapier webhook
@@ -1052,7 +1052,7 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
 
         # Sync to Zapier webhook
         visitor_dict = visitor.dict()
-        visitor_dict["created_at"] = datetime.now().isoformat()
+        visitor_dict["created_at"] = datetime.now(timezone.utc).isoformat()
         visitor_dict["buyer_email"] = buyer_email  # Use generated placeholder email if applicable
 
         agent_dict = {
@@ -1068,7 +1068,7 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
                 UPDATE visitors
                 SET cinc_synced = 1, cinc_sync_at = ?
                 WHERE id = ?
-            """, (datetime.now().isoformat(), visitor_id))
+            """, (datetime.now(timezone.utc).isoformat(), visitor_id))
 
         return {
             "id": visitor_id,
@@ -1273,7 +1273,7 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
         if "price_range" in data and data["price_range"] is not None:
             data["price_range"] = data["price_range"].value
 
-        data["updated_at"] = datetime.now().isoformat()
+        data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         set_clause = ", ".join(f"{k} = ?" for k in data.keys())
         values = list(data.values()) + [visitor_id]
@@ -1340,7 +1340,7 @@ def add_note(visitor_id: int, note: NoteCreate, current_user: UserInDB = Depends
         """, (visitor_id, note.agent_id, note.note))
 
         note_id = cursor.lastrowid
-        created_at = datetime.now().isoformat()
+        created_at = datetime.now(timezone.utc).isoformat()
 
         cursor.execute("UPDATE visitors SET updated_at = ? WHERE id = ?",
                       (created_at, visitor_id))

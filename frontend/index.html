@@ -1910,7 +1910,7 @@
                         : '';
 
                     row.innerHTML = `
-                        <td>${date.toLocaleDateString()}</td>
+                        <td>${date.toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</td>
                         <td><strong>${visitor.buyer_name}</strong></td>
                         <td>${visitor.buyer_phone}</td>
                         <td>${visitor.buyer_email || '-'}</td>
@@ -1971,7 +1971,7 @@
                 if (data.exists && data.count > 0) {
                     // Visitor(s) found - show warning with matches
                     let matchesHTML = data.matches.map(match => {
-                        const createdDate = new Date(match.created_at).toLocaleDateString();
+                        const createdDate = new Date(match.created_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
                         return `
                             <li class="mb-2">
                                 <strong>${match.buyer_name}</strong><br>
@@ -2229,7 +2229,7 @@
                             <h6 class="text-muted">Visit Information</h6>
                             <p><strong>Site:</strong> ${visitor.site}</p>
                             <p><strong>Created By:</strong> ${visitor.created_by_username || visitor.agent_name || '-'}</p>
-                            <p><strong>Visit Date:</strong> ${new Date(visitor.created_at).toLocaleString()}</p>
+                            <p><strong>Visit Date:</strong> ${new Date(visitor.created_at).toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
                             <p><strong>CINC Status:</strong> ${visitor.cinc_synced ? '<span class="badge badge-synced">Synced</span>' : '<span class="badge badge-pending">Pending</span>'}</p>
                         </div>
                     </div>
@@ -2244,7 +2244,7 @@
                             <div class="list-group-item">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">${note.agent_name || 'Unknown Agent'}</h6>
-                                    <small class="note-timestamp">${new Date(note.created_at).toLocaleString()}</small>
+                                    <small class="note-timestamp">${new Date(note.created_at).toLocaleString('en-US', { timeZone: 'America/New_York' })}</small>
                                 </div>
                                 <p class="mb-0">${note.note}</p>
                             </div>
@@ -2624,8 +2624,8 @@
                         <td><span class="badge bg-${getRoleBadgeColor(user.role)}">${formatRole(user.role)}</span></td>
                         <td>${user.agent_name || '-'}</td>
                         <td><span class="badge bg-${user.active ? 'success' : 'secondary'}">${user.active ? 'Active' : 'Inactive'}</span></td>
-                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                        <td>${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
+                        <td>${new Date(user.created_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</td>
+                        <td>${user.last_login ? new Date(user.last_login).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : 'Never'}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" onclick="showEditUser(${user.id})">
                                 <i class="bi bi-pencil"></i>
