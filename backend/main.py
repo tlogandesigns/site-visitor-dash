@@ -1241,7 +1241,7 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
         cursor = conn.cursor()
 
         visitor = cursor.execute(
-            "SELECT id, created_by_user_id, site FROM visitors WHERE id = ?",
+            "SELECT * FROM visitors WHERE id = ?",
             (visitor_id,)
         ).fetchone()
 
@@ -1258,6 +1258,33 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
         data = update.model_dump(exclude_unset=True)
         if not data:
             raise HTTPException(status_code=400, detail="No fields to update")
+
+        # Human-readable field labels for the change summary
+        field_labels = {
+            "buyer_name": "Name", "secondary_visitor": "Secondary Visitor",
+            "buyer_email": "Email", "buyer_phone": "Phone",
+            "first_visit": "First Visit", "represented": "Represented",
+            "cobroker_name": "Co-broker", "is_local": "Local",
+            "buyer_state": "State", "purchase_timeline": "Timeline",
+            "price_range": "Price Range", "location_looking": "Looking In",
+            "occupation": "Occupation", "occupation_other": "Occupation (Other)",
+            "discovery_method": "Discovery Method", "interested_in": "Interested In",
+            "builders_requested": "Builders Requested", "offer_on_table": "Offer on Table",
+            "finalized_contracts": "Finalized Contracts", "site": "Site",
+        }
+
+        # Build change summary by comparing old vs new values
+        changes = []
+        for field, new_val in data.items():
+            old_val = visitor[field] if field in visitor.keys() else None
+            label = field_labels.get(field, field)
+            # Normalize for display
+            old_str = str(old_val) if old_val not in (None, "") else "(none)"
+            new_str = str(new_val) if new_val not in (None, "", []) else "(none)"
+            if isinstance(new_val, list):
+                new_str = ", ".join(new_val) if new_val else "(none)"
+            if str(old_val) != str(new_val):
+                changes.append(f"{label}: {old_str} → {new_str}")
 
         # Convert list/enum fields
         if "interested_in" in data:
@@ -1279,6 +1306,16 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
         values = list(data.values()) + [visitor_id]
 
         cursor.execute(f"UPDATE visitors SET {set_clause} WHERE id = ?", values)
+
+        # Add an audit note if anything actually changed
+        if changes:
+            agent_id = current_user.agent_id or visitor["capturing_agent_id"]
+            note_text = f"[Edited by {current_user.username}] " + "; ".join(changes)
+            cursor.execute(
+                "INSERT INTO visitor_notes (visitor_id, agent_id, note) VALUES (?, ?, ?)",
+                (visitor_id, agent_id, note_text)
+            )
+
         conn.commit()
 
         return {"message": "Visitor updated successfully"}
