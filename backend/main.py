@@ -1273,20 +1273,7 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
             "finalized_contracts": "Finalized Contracts", "site": "Site",
         }
 
-        # Build change summary by comparing old vs new values
-        changes = []
-        for field, new_val in data.items():
-            old_val = visitor[field] if field in visitor.keys() else None
-            label = field_labels.get(field, field)
-            # Normalize for display
-            old_str = str(old_val) if old_val not in (None, "") else "(none)"
-            new_str = str(new_val) if new_val not in (None, "", []) else "(none)"
-            if isinstance(new_val, list):
-                new_str = ", ".join(new_val) if new_val else "(none)"
-            if str(old_val) != str(new_val):
-                changes.append(f"{label}: {old_str} → {new_str}")
-
-        # Convert list/enum fields
+        # Convert list/enum fields BEFORE comparison so values are comparable strings
         if "interested_in" in data:
             data["interested_in"] = ",".join(data["interested_in"]) if data["interested_in"] else None
         if "builders_requested" in data:
@@ -1299,6 +1286,21 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
             data["discovery_method"] = data["discovery_method"].value
         if "price_range" in data and data["price_range"] is not None:
             data["price_range"] = data["price_range"].value
+
+        # SQLite stores booleans as 0/1 — normalize before comparing
+        bool_fields = {"first_visit", "represented", "is_local", "offer_on_table", "finalized_contracts"}
+
+        # Build change summary by comparing old vs new values
+        changes = []
+        for field, new_val in data.items():
+            old_val = visitor[field] if field in visitor.keys() else None
+            label = field_labels.get(field, field)
+            if field in bool_fields:
+                old_val = bool(old_val)
+            old_str = str(old_val) if old_val not in (None, "") else "(none)"
+            new_str = str(new_val) if new_val not in (None, "") else "(none)"
+            if old_str != new_str:
+                changes.append(f"{label}: {old_str} → {new_str}")
 
         data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
