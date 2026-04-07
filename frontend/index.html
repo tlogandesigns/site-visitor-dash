@@ -1102,6 +1102,186 @@
         </div>
     </div>
 
+    <!-- Edit Visitor Modal -->
+    <div class="modal fade" id="editVisitorModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Lead</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editVisitorForm">
+                        <input type="hidden" id="editVisitorId">
+                        <div class="row">
+                            <div class="col-md-12 mb-3"><h6 class="text-muted">Buyer Information</h6></div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Name</label>
+                                <input type="text" class="form-control" id="evBuyerName" required minlength="2">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Secondary Visitor</label>
+                                <input type="text" class="form-control" id="evSecondaryVisitor">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="evBuyerEmail">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Cell Phone</label>
+                                <input type="tel" class="form-control" id="evBuyerPhone" minlength="10">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">First Visit?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="evFirstVisit" id="evFirstVisitYes" value="true">
+                                    <label class="btn btn-outline-primary" for="evFirstVisitYes">Yes</label>
+                                    <input type="radio" class="btn-check" name="evFirstVisit" id="evFirstVisitNo" value="false">
+                                    <label class="btn btn-outline-primary" for="evFirstVisitNo">No</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Represented?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="evRepresented" id="evRepNo" value="false">
+                                    <label class="btn btn-outline-primary" for="evRepNo">No</label>
+                                    <input type="radio" class="btn-check" name="evRepresented" id="evRepYes" value="true">
+                                    <label class="btn btn-outline-primary" for="evRepYes">Yes</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3" id="evCobrokerDiv">
+                                <label class="form-label">Co-broker Name</label>
+                                <input type="text" class="form-control" id="evCobrokerName">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Local?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="evIsLocal" id="evLocalYes" value="true">
+                                    <label class="btn btn-outline-primary" for="evLocalYes">Yes</label>
+                                    <input type="radio" class="btn-check" name="evIsLocal" id="evLocalNo" value="false">
+                                    <label class="btn btn-outline-primary" for="evLocalNo">No</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3" id="evStateDiv">
+                                <label class="form-label">State</label>
+                                <select class="form-select" id="evBuyerState"></select>
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Interested In</label>
+                                <div class="row">
+                                    <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="Estate" id="evIntEstate"><label class="form-check-label" for="evIntEstate">Estate</label></div></div>
+                                    <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="Signature" id="evIntSignature"><label class="form-check-label" for="evIntSignature">Signature</label></div></div>
+                                    <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="TownHome" id="evIntTownHome"><label class="form-check-label" for="evIntTownHome">TownHome</label></div></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Timeline</label>
+                                <select class="form-select" id="evPurchaseTimeline">
+                                    <option value="">Select...</option>
+                                    <option value="0-3 months">0-3 months</option>
+                                    <option value="3-6 months">3-6 months</option>
+                                    <option value="6-12 months">6-12 months</option>
+                                    <option value="12+ months">12+ months</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Price Range</label>
+                                <select class="form-select" id="evPriceRange">
+                                    <option value="">Select...</option>
+                                    <option value="Under $200k">Under $200k</option>
+                                    <option value="$200k-$300k">$200k-$300k</option>
+                                    <option value="$300k-$400k">$300k-$400k</option>
+                                    <option value="$400k-$500k">$400k-$500k</option>
+                                    <option value="$500k-$600k">$500k-$600k</option>
+                                    <option value="$600k-$700k">$600k-$700k</option>
+                                    <option value="$700k-$800k">$700k-$800k</option>
+                                    <option value="$800k-$900k">$800k-$900k</option>
+                                    <option value="$900k-$1M">$900k-$1M</option>
+                                    <option value="$1M+">$1M+</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Looking In</label>
+                                <input type="text" class="form-control" id="evLocationLooking">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Occupation</label>
+                                <select class="form-select" id="evOccupation">
+                                    <option value="">Select...</option>
+                                    <option value="Military">Military</option>
+                                    <option value="SRNS (DOE)">SRNS (DOE)</option>
+                                    <option value="Healthcare">Healthcare</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Factory/Distribution">Factory/Distribution</option>
+                                    <option value="Retired">Retired</option>
+                                    <option value="Work from home">Work from home</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3" id="evOccupationOtherDiv">
+                                <label class="form-label">Specify Occupation</label>
+                                <input type="text" class="form-control" id="evOccupationOther">
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">How did buyer first learn about the community?</label>
+                                <select class="form-select" id="evDiscoveryMethod">
+                                    <option value="">Select...</option>
+                                    <option value="BBH website">BBH website</option>
+                                    <option value="BHHS website">BHHS website</option>
+                                    <option value="Zillow/REALTOR.com/Homes.com/similar">Zillow/REALTOR.com/Homes.com/similar</option>
+                                    <option value="Current resident">Current resident</option>
+                                    <option value="Social media">Social media</option>
+                                    <option value="Site agent">Site agent</option>
+                                    <option value="Cobroker">Cobroker</option>
+                                    <option value="Word of Mouth">Word of Mouth</option>
+                                    <option value="Radio/TV ad">Radio/TV ad</option>
+                                    <option value="Signs/Drive by">Signs/Drive by</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Builder Requested</label>
+                                <div class="row">
+                                    <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="Bill Beazley Homes" id="evBuilderBBH"><label class="form-check-label" for="evBuilderBBH">Bill Beazley Homes</label></div></div>
+                                    <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="Crawford Construction" id="evBuilderCrawford"><label class="form-check-label" for="evBuilderCrawford">Crawford Construction</label></div></div>
+                                    <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="Pierwood Construction" id="evBuilderPierwood"><label class="form-check-label" for="evBuilderPierwood">Pierwood Construction</label></div></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Offer on the Table?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="evOfferOnTable" id="evOfferNo" value="false">
+                                    <label class="btn btn-outline-primary" for="evOfferNo">No</label>
+                                    <input type="radio" class="btn-check" name="evOfferOnTable" id="evOfferYes" value="true">
+                                    <label class="btn btn-outline-primary" for="evOfferYes">Yes</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Finalized Contracts?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="evFinalizedContracts" id="evContractsNo" value="false">
+                                    <label class="btn btn-outline-primary" for="evContractsNo">No</label>
+                                    <input type="radio" class="btn-check" name="evFinalizedContracts" id="evContractsYes" value="true">
+                                    <label class="btn btn-outline-primary" for="evContractsYes">Yes</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Site</label>
+                                <select class="form-select" id="evSite" required></select>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="editVisitorError" class="alert alert-danger d-none mt-2"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="handleEditVisitor()">
+                        <i class="bi bi-check-circle"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Confirmation Modal -->
     <div class="modal fade" id="confirmModal" tabindex="-1">
         <div class="modal-dialog">
@@ -2257,6 +2437,160 @@
                 'Delete Lead',
                 'btn-danger'
             );
+        }
+
+        // ==== EDIT VISITOR FUNCTIONS ====
+
+        function showEditVisitor() {
+            const visitorDetailModal = document.getElementById('visitorDetailModal');
+            const visitor = JSON.parse(visitorDetailModal.dataset.visitorData || '{}');
+
+            document.getElementById('editVisitorId').value = visitor.id;
+            document.getElementById('evBuyerName').value = visitor.buyer_name || '';
+            document.getElementById('evSecondaryVisitor').value = visitor.secondary_visitor || '';
+
+            // Only show real email, not placeholder
+            const email = visitor.buyer_email || '';
+            document.getElementById('evBuyerEmail').value = email.endsWith('@noemail.com') ? '' : email;
+            document.getElementById('evBuyerPhone').value = visitor.buyer_phone || '';
+
+            document.getElementById('evFirstVisitYes').checked = visitor.first_visit == true;
+            document.getElementById('evFirstVisitNo').checked = visitor.first_visit != true;
+            document.getElementById('evRepYes').checked = visitor.represented == true;
+            document.getElementById('evRepNo').checked = visitor.represented != true;
+            document.getElementById('evCobrokerName').value = visitor.cobroker_name || '';
+            document.getElementById('evCobrokerDiv').style.display = visitor.represented ? 'block' : 'none';
+            document.getElementById('evLocalYes').checked = visitor.is_local != false;
+            document.getElementById('evLocalNo').checked = visitor.is_local == false;
+            document.getElementById('evStateDiv').style.display = visitor.is_local == false ? 'block' : 'none';
+
+            // Populate state dropdown from existing add-form list
+            const addStateSelect = document.getElementById('buyerState');
+            const evStateSelect = document.getElementById('evBuyerState');
+            evStateSelect.innerHTML = '<option value="">Select state...</option>';
+            for (let i = 1; i < addStateSelect.options.length; i++) {
+                const opt = addStateSelect.options[i].cloneNode(true);
+                evStateSelect.appendChild(opt);
+            }
+            evStateSelect.value = visitor.buyer_state || '';
+
+            document.getElementById('evPurchaseTimeline').value = visitor.purchase_timeline || '';
+            document.getElementById('evPriceRange').value = visitor.price_range || '';
+            document.getElementById('evLocationLooking').value = visitor.location_looking || '';
+            document.getElementById('evOccupation').value = visitor.occupation || '';
+            document.getElementById('evOccupationOther').value = visitor.occupation_other || '';
+            document.getElementById('evOccupationOtherDiv').style.display = visitor.occupation === 'Other' ? 'block' : 'none';
+            document.getElementById('evDiscoveryMethod').value = visitor.discovery_method || '';
+
+            const interested = visitor.interested_in ? visitor.interested_in.split(',') : [];
+            document.getElementById('evIntEstate').checked = interested.includes('Estate');
+            document.getElementById('evIntSignature').checked = interested.includes('Signature');
+            document.getElementById('evIntTownHome').checked = interested.includes('TownHome');
+
+            const builders = visitor.builders_requested ? visitor.builders_requested.split(',') : [];
+            document.getElementById('evBuilderBBH').checked = builders.includes('Bill Beazley Homes');
+            document.getElementById('evBuilderCrawford').checked = builders.includes('Crawford Construction');
+            document.getElementById('evBuilderPierwood').checked = builders.includes('Pierwood Construction');
+
+            document.getElementById('evOfferYes').checked = visitor.offer_on_table == true;
+            document.getElementById('evOfferNo').checked = visitor.offer_on_table != true;
+            document.getElementById('evContractsYes').checked = visitor.finalized_contracts == true;
+            document.getElementById('evContractsNo').checked = visitor.finalized_contracts != true;
+
+            // Populate site dropdown from existing sites
+            const evSiteSelect = document.getElementById('evSite');
+            evSiteSelect.innerHTML = '<option value="">Select site...</option>';
+            sites.forEach(site => {
+                const opt = document.createElement('option');
+                opt.value = site;
+                opt.textContent = site;
+                evSiteSelect.appendChild(opt);
+            });
+            evSiteSelect.value = visitor.site || '';
+
+            document.getElementById('editVisitorError').classList.add('d-none');
+
+            // Wire up conditional visibility
+            document.querySelectorAll('input[name="evRepresented"]').forEach(r => {
+                r.addEventListener('change', () => {
+                    document.getElementById('evCobrokerDiv').style.display = r.value === 'true' && r.checked ? 'block' : (document.getElementById('evRepYes').checked ? 'block' : 'none');
+                });
+            });
+            document.querySelectorAll('input[name="evIsLocal"]').forEach(r => {
+                r.addEventListener('change', () => {
+                    document.getElementById('evStateDiv').style.display = document.getElementById('evLocalNo').checked ? 'block' : 'none';
+                });
+            });
+            document.getElementById('evOccupation').addEventListener('change', function() {
+                document.getElementById('evOccupationOtherDiv').style.display = this.value === 'Other' ? 'block' : 'none';
+            });
+
+            // Close detail modal, open edit modal
+            const detailModal = bootstrap.Modal.getInstance(document.getElementById('visitorDetailModal'));
+            if (detailModal) detailModal.hide();
+            const editModal = new bootstrap.Modal(document.getElementById('editVisitorModal'));
+            editModal.show();
+        }
+
+        async function handleEditVisitor() {
+            const visitorId = document.getElementById('editVisitorId').value;
+            const errEl = document.getElementById('editVisitorError');
+            errEl.classList.add('d-none');
+
+            const interested = ['Estate', 'Signature', 'TownHome'].filter(v =>
+                document.getElementById('evInt' + v).checked
+            );
+            const builders = [
+                ['Bill Beazley Homes', 'evBuilderBBH'],
+                ['Crawford Construction', 'evBuilderCrawford'],
+                ['Pierwood Construction', 'evBuilderPierwood']
+            ].filter(([_, id]) => document.getElementById(id).checked).map(([v]) => v);
+
+            const payload = {
+                buyer_name: document.getElementById('evBuyerName').value.trim(),
+                secondary_visitor: document.getElementById('evSecondaryVisitor').value.trim() || null,
+                buyer_email: document.getElementById('evBuyerEmail').value.trim() || null,
+                buyer_phone: document.getElementById('evBuyerPhone').value.trim() || null,
+                first_visit: document.getElementById('evFirstVisitYes').checked,
+                represented: document.getElementById('evRepYes').checked,
+                cobroker_name: document.getElementById('evCobrokerName').value.trim() || null,
+                is_local: document.getElementById('evLocalYes').checked,
+                buyer_state: document.getElementById('evBuyerState').value || null,
+                purchase_timeline: document.getElementById('evPurchaseTimeline').value || null,
+                price_range: document.getElementById('evPriceRange').value || null,
+                location_looking: document.getElementById('evLocationLooking').value.trim() || null,
+                occupation: document.getElementById('evOccupation').value || null,
+                occupation_other: document.getElementById('evOccupationOther').value.trim() || null,
+                discovery_method: document.getElementById('evDiscoveryMethod').value || null,
+                interested_in: interested.length ? interested : null,
+                builders_requested: builders.length ? builders : null,
+                offer_on_table: document.getElementById('evOfferYes').checked,
+                finalized_contracts: document.getElementById('evContractsYes').checked,
+                site: document.getElementById('evSite').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/visitors/${visitorId}`, {
+                    method: 'PUT',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.status === 401) { handleLogout(); return; }
+                if (!response.ok) {
+                    const err = await response.json();
+                    errEl.textContent = err.detail || 'Failed to save changes';
+                    errEl.classList.remove('d-none');
+                    return;
+                }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editVisitorModal'));
+                if (modal) modal.hide();
+                loadVisitors();
+                loadStats();
+                showToast('Lead updated successfully!', 'success');
+            } catch (error) {
+                errEl.textContent = 'Failed to save changes. Please try again.';
+                errEl.classList.remove('d-none');
+            }
         }
 
         // ==== USER MANAGEMENT FUNCTIONS ====
