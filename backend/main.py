@@ -1345,9 +1345,10 @@ def add_note(visitor_id: int, note: NoteCreate, current_user: UserInDB = Depends
         cursor.execute("UPDATE visitors SET updated_at = ? WHERE id = ?",
                       (created_at, visitor_id))
 
-        # Sync note to Zapier/CINC
+        # Sync note to Zapier/CINC — prepend agent name so CINC shows who added it
+        agent_name = agent["name"] if agent else "Unknown"
         note_data = {
-            "note": note.note,
+            "note": f"{agent_name}: {note.note}",
             "created_at": created_at
         }
         visitor_dict = dict(visitor)
