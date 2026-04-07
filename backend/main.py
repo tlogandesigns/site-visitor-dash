@@ -1309,16 +1309,31 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
 
         cursor.execute(f"UPDATE visitors SET {set_clause} WHERE id = ?", values)
 
-        # Add an audit note if anything actually changed
+        # Add an audit note and sync to CINC if anything actually changed
         if changes:
             agent_id = current_user.agent_id or visitor["capturing_agent_id"]
             note_text = f"[Edited by {current_user.username}] " + "; ".join(changes)
+            created_at = datetime.now(timezone.utc).isoformat()
+
             cursor.execute(
                 "INSERT INTO visitor_notes (visitor_id, agent_id, note) VALUES (?, ?, ?)",
                 (visitor_id, agent_id, note_text)
             )
 
-        conn.commit()
+            agent = cursor.execute(
+                "SELECT id, name, cinc_id, email FROM agents WHERE id = ?",
+                (agent_id,)
+            ).fetchone()
+
+            conn.commit()
+
+            sync_note_to_zapier(
+                {"note": note_text, "created_at": created_at},
+                dict(visitor),
+                dict(agent) if agent else {}
+            )
+        else:
+            conn.commit()
 
         return {"message": "Visitor updated successfully"}
 
