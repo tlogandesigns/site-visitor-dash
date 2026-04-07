@@ -2015,9 +2015,20 @@
                     deleteBtn.style.display = 'none';
                 }
 
-                // Store capturing_agent_id for note creation
+                // Show/hide edit button: admins/super_admins or the creator
+                const editBtn = document.getElementById('editVisitorBtn');
+                const isAdminUser = currentUser.role === 'admin' || currentUser.role === 'super_admin';
+                const isCreator = visitor.created_by_user_id === currentUser.id;
+                if (isAdminUser || isCreator) {
+                    editBtn.style.display = 'block';
+                } else {
+                    editBtn.style.display = 'none';
+                }
+
+                // Store visitor data and capturing_agent_id for note creation / editing
                 const visitorDetailModal = document.getElementById('visitorDetailModal');
                 visitorDetailModal.dataset.capturingAgentId = visitor.capturing_agent_id;
+                visitorDetailModal.dataset.visitorData = JSON.stringify(visitor);
 
                 let html = `
                     <div class="row mb-3">
