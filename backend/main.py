@@ -357,6 +357,70 @@ class VisitorCreate(BaseModel):
             return v
         return sanitize_string(v, 5000)
 
+class VisitorUpdate(BaseModel):
+    buyer_name: Optional[str] = Field(None, min_length=2, max_length=255)
+    secondary_visitor: Optional[str] = Field(None, max_length=255)
+    buyer_email: Optional[EmailStr] = None
+    buyer_phone: Optional[str] = Field(None, min_length=10, max_length=20)
+    first_visit: Optional[bool] = None
+    represented: Optional[bool] = None
+    cobroker_name: Optional[str] = Field(None, max_length=255)
+    is_local: Optional[bool] = None
+    buyer_state: Optional[str] = Field(None, max_length=50)
+    occupation: Optional[Occupation] = None
+    occupation_other: Optional[str] = Field(None, max_length=100)
+    discovery_method: Optional[DiscoveryMethod] = None
+    interested_in: Optional[List[str]] = None
+    builders_requested: Optional[List[str]] = None
+    purchase_timeline: Optional[PurchaseTimeline] = None
+    offer_on_table: Optional[bool] = None
+    finalized_contracts: Optional[bool] = None
+    price_range: Optional[PriceRange] = None
+    location_looking: Optional[str] = Field(None, max_length=255)
+    location_current: Optional[str] = Field(None, max_length=255)
+    site: Optional[str] = Field(None, min_length=1, max_length=100)
+
+    @field_validator('buyer_name')
+    @classmethod
+    def validate_buyer_name(cls, v):
+        if v is None:
+            return v
+        return sanitize_string(v, 255)
+
+    @field_validator('buyer_phone')
+    @classmethod
+    def validate_buyer_phone(cls, v):
+        if v:
+            return validate_phone_number(v)
+        return v
+
+    @field_validator('interested_in')
+    @classmethod
+    def validate_interested_in(cls, v):
+        if v:
+            valid_options = ["Estate", "Signature", "TownHome"]
+            for item in v:
+                if item not in valid_options:
+                    raise ValueError(f'Invalid interest option: {item}')
+        return v
+
+    @field_validator('builders_requested')
+    @classmethod
+    def validate_builders(cls, v):
+        if v:
+            valid_builders = ["Bill Beazley Homes", "Crawford Construction", "Pierwood Construction"]
+            for item in v:
+                if item not in valid_builders:
+                    raise ValueError(f'Invalid builder option: {item}')
+        return v
+
+    @field_validator('location_looking', 'location_current', 'site', 'cobroker_name', 'buyer_state', 'occupation_other')
+    @classmethod
+    def validate_strings(cls, v):
+        if v is None:
+            return v
+        return sanitize_string(v, 255)
+
 class NoteCreate(BaseModel):
     visitor_id: int = Field(..., gt=0)
     agent_id: int = Field(..., gt=0)
@@ -1169,6 +1233,55 @@ def get_visitor(visitor_id: int, current_user: UserInDB = Depends(get_current_us
             "visitor": dict(visitor),
             "notes": [dict(n) for n in notes]
         }
+
+@app.put("/visitors/{visitor_id}")
+def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInDB = Depends(get_current_user)):
+    """Update visitor. Users can only edit visitors they created; admins can edit any."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        visitor = cursor.execute(
+            "SELECT id, created_by_user_id, site FROM visitors WHERE id = ?",
+            (visitor_id,)
+        ).fetchone()
+
+        if not visitor:
+            raise HTTPException(status_code=404, detail="Visitor not found")
+
+        is_admin = current_user.role in ("admin", "super_admin")
+        is_creator = visitor["created_by_user_id"] == current_user.id
+
+        if not is_admin and not is_creator:
+            raise HTTPException(status_code=403, detail="Not authorized to edit this visitor")
+
+        # Build SET clause from non-None fields
+        data = update.model_dump(exclude_unset=True)
+        if not data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        # Convert list/enum fields
+        if "interested_in" in data:
+            data["interested_in"] = ",".join(data["interested_in"]) if data["interested_in"] else None
+        if "builders_requested" in data:
+            data["builders_requested"] = ",".join(data["builders_requested"]) if data["builders_requested"] else None
+        if "occupation" in data and data["occupation"] is not None:
+            data["occupation"] = data["occupation"].value
+        if "purchase_timeline" in data and data["purchase_timeline"] is not None:
+            data["purchase_timeline"] = data["purchase_timeline"].value
+        if "discovery_method" in data and data["discovery_method"] is not None:
+            data["discovery_method"] = data["discovery_method"].value
+        if "price_range" in data and data["price_range"] is not None:
+            data["price_range"] = data["price_range"].value
+
+        data["updated_at"] = datetime.now().isoformat()
+
+        set_clause = ", ".join(f"{k} = ?" for k in data.keys())
+        values = list(data.values()) + [visitor_id]
+
+        cursor.execute(f"UPDATE visitors SET {set_clause} WHERE id = ?", values)
+        conn.commit()
+
+        return {"message": "Visitor updated successfully"}
 
 @app.get("/visitors/check/name")
 def check_visitor_name(name: str, current_user: UserInDB = Depends(get_current_user)):
