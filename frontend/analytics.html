@@ -144,6 +144,47 @@
             </div>
         </div>
 
+        <!-- Printable Report -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-printer"></i> Printable Visitor Report
+                            </h5>
+                            <span class="text-muted small" id="reportScopeText">Generate a date-bound summary for all communities.</span>
+                        </div>
+                        <div id="reportError" class="alert alert-danger d-none" role="alert"></div>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label for="reportStartDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="reportStartDate">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="reportEndDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="reportEndDate">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label d-block">Actions</label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-secondary" onclick="resetReportForm()">
+                                        <i class="bi bi-x-circle"></i> Clear
+                                    </button>
+                                    <button class="btn btn-primary" onclick="generatePrintableReport()">
+                                        <i class="bi bi-file-earmark-pdf"></i> Download PDF Report
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    Report data respects role visibility and includes all sites plus per-site detail.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Row 1: Time-based Charts -->
         <div class="row mb-4">
             <div class="col-lg-8">
@@ -232,7 +273,7 @@
             </div>
         </div>
 
-        <!-- Printable Report -->
+        <!-- Printable Report
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -271,7 +312,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> -->
     </div>
 
     <!-- Bootstrap JS -->
