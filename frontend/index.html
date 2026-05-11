@@ -574,6 +574,10 @@
                                         <i class="bi bi-search"></i> Check
                                     </button>
                                 </div>
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox" id="nameUnknown">
+                                    <label class="form-check-label text-muted small" for="nameUnknown">Name unknown</label>
+                                </div>
                                 <div id="nameCheckFeedback" class="mt-2"></div>
                             </div>
 
@@ -1746,6 +1750,22 @@
                     checkVisitorName();
                 }
             });
+
+            // Name unknown checkbox
+            document.getElementById('nameUnknown').addEventListener('change', function() {
+                const nameInput = document.getElementById('buyerName');
+                const checkBtn = document.getElementById('checkNameBtn');
+                if (this.checked) {
+                    nameInput.value = 'Unknown';
+                    nameInput.disabled = true;
+                    checkBtn.disabled = true;
+                } else {
+                    nameInput.value = '';
+                    nameInput.disabled = false;
+                    checkBtn.disabled = false;
+                    nameInput.focus();
+                }
+            });
         });
 
         // Load sites
@@ -2160,6 +2180,8 @@
 
                 // Reset form
                 form.reset();
+                document.getElementById('buyerName').disabled = false;
+                document.getElementById('checkNameBtn').disabled = false;
 
                 // Refresh data
                 loadVisitors();
