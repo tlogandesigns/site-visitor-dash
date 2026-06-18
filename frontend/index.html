@@ -1945,7 +1945,7 @@
                     row.onclick = () => showVisitorDetail(visitor.id);
 
                     const representedBadge = visitor.represented
-                        ? `<span class="badge bg-warning text-dark">Yes${visitor.cobroker_name ? ` — ${visitor.cobroker_name}` : ''}</span>`
+                        ? `<span class="badge bg-warning text-dark">${visitor.cobroker_name || 'Yes'}</span>`
                         : '<span class="badge bg-success">No</span>';
 
                     // Show delete button only for admins and super_admins
