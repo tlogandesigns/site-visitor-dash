@@ -2203,8 +2203,11 @@
                 // Show success message
                 const message = data.synced
                     ? 'Visitor added and synced to CINC successfully!'
-                    : 'Visitor added successfully! CINC sync pending.';
-                showToast(message, data.synced ? 'success' : 'warning');
+                    : represented
+                        ? 'Visitor added successfully!'
+                        : 'Visitor added successfully! CINC sync pending.';
+                const toastType = (data.synced || represented) ? 'success' : 'warning';
+                showToast(message, toastType);
 
             } catch (error) {
                 console.error('Error creating visitor:', error);
