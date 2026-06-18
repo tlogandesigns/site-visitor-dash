@@ -131,6 +131,7 @@ SELECT
     a.name as agent_name,
     a.cinc_id as agent_cinc_id,
     (SELECT COUNT(*) FROM visitor_notes WHERE visitor_id = v.id) as note_count,
-    (SELECT note FROM visitor_notes WHERE visitor_id = v.id ORDER BY created_at DESC LIMIT 1) as latest_note
+    (SELECT note FROM visitor_notes WHERE visitor_id = v.id ORDER BY created_at DESC LIMIT 1) as latest_note,
+    (SELECT created_at FROM visitor_notes WHERE visitor_id = v.id ORDER BY created_at DESC LIMIT 1) as last_note_at
 FROM visitors v
 LEFT JOIN agents a ON v.capturing_agent_id = a.id;

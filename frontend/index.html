@@ -342,6 +342,10 @@
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between gap-2">
                 <h5 class="mb-0 flex-shrink-0">Recent Visitors</h5>
+                <div class="btn-group btn-group-sm flex-shrink-0" role="group" id="sortToggleGroup">
+                    <button type="button" class="btn btn-primary" id="sortByAdded" onclick="setSortMode('added')">Last Added</button>
+                    <button type="button" class="btn btn-outline-primary" id="sortByNote" onclick="setSortMode('note')">Last Note</button>
+                </div>
                 <input type="search" id="visitorSearch" class="form-control form-control-sm w-auto" placeholder="Search by name, phone, email…" style="min-width:220px;">
             </div>
             <div class="card-body">
@@ -362,7 +366,7 @@
                                 <th>Price Range</th>
                                 <th>Site</th>
                                 <th>Agent</th>
-                                <th>CINC</th>
+                                <th>Represented</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -794,9 +798,9 @@
                                 </select>
                             </div>
 
-                            <!-- Builder Requested -->
+                            <!-- Builder Viewed -->
                             <div class="col-md-12 mb-3">
-                                <label class="form-label">Builder Requested (Check all that apply)</label>
+                                <label class="form-label">Builder Viewed (Check all that apply)</label>
                                 <div class="row">
                                     <div class="col-md-4">
                                         <div class="form-check">
@@ -1243,7 +1247,7 @@
                                 </select>
                             </div>
                             <div class="col-md-12 mb-3">
-                                <label class="form-label">Builder Requested</label>
+                                <label class="form-label">Builder Viewed</label>
                                 <div class="row">
                                     <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="Bill Beazley Homes" id="evBuilderBBH"><label class="form-check-label" for="evBuilderBBH">Bill Beazley Homes</label></div></div>
                                     <div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" value="Crawford Construction" id="evBuilderCrawford"><label class="form-check-label" for="evBuilderCrawford">Crawford Construction</label></div></div>
@@ -1893,20 +1897,30 @@
         }
 
         // Load visitors
+        let visitorSortMode = 'added';
+
+        function setSortMode(mode) {
+            visitorSortMode = mode;
+            document.getElementById('sortByAdded').className = mode === 'added' ? 'btn btn-primary btn-sm' : 'btn btn-outline-primary btn-sm';
+            document.getElementById('sortByNote').className = mode === 'note' ? 'btn btn-primary btn-sm' : 'btn btn-outline-primary btn-sm';
+            loadVisitors();
+        }
+
         async function loadVisitors() {
             const tableBody = document.getElementById('visitorsTable');
             const loading = document.getElementById('tableLoading');
-            
+
             loading.style.display = 'block';
             tableBody.innerHTML = '';
-            
+
             const site = document.getElementById('siteFilter').value;
             const search = document.getElementById('visitorSearch').value.trim();
             const params = new URLSearchParams();
             if (site) params.set('site', site);
             if (search) params.set('search', search);
-            const query = params.toString();
-            const url = query ? `${API_BASE}/visitors?${query}` : `${API_BASE}/visitors`;
+            params.set('sort_by', visitorSortMode === 'note' ? 'last_note_at' : 'created_at');
+            params.set('sort_order', 'desc');
+            const url = `${API_BASE}/visitors?${params.toString()}`;
 
             try {
                 const response = await fetch(url, {
@@ -1924,16 +1938,15 @@
                     tableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No visitors yet</td></tr>';
                     return;
                 }
-                
+
                 data.visitors.forEach(visitor => {
                     const row = document.createElement('tr');
                     row.style.cursor = 'pointer';
                     row.onclick = () => showVisitorDetail(visitor.id);
 
-                    const date = parseTS(visitor.created_at);
-                    const cincBadge = visitor.cinc_synced
-                        ? '<span class="badge badge-synced">Synced</span>'
-                        : '<span class="badge badge-pending">Pending</span>';
+                    const representedBadge = visitor.represented
+                        ? `<span class="badge bg-warning text-dark">Yes${visitor.cobroker_name ? ` — ${visitor.cobroker_name}` : ''}</span>`
+                        : '<span class="badge bg-success">No</span>';
 
                     // Show delete button only for admins and super_admins
                     const deleteButton = (currentUser.role === 'admin' || currentUser.role === 'super_admin')
@@ -1951,7 +1964,7 @@
                         <td>${visitor.price_range || '-'}</td>
                         <td>${visitor.site}</td>
                         <td>${visitor.created_by_username || visitor.agent_name || '-'}</td>
-                        <td>${cincBadge}</td>
+                        <td>${representedBadge}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showVisitorDetail(${visitor.id})">
                                 <i class="bi bi-eye"></i>

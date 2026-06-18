@@ -147,6 +147,7 @@ class SortField(str, Enum):
     BUYER_NAME = "buyer_name"
     SITE = "site"
     UPDATED_AT = "updated_at"
+    LAST_NOTE_AT = "last_note_at"
 
 class SortOrder(str, Enum):
     ASC = "asc"
