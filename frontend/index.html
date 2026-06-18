@@ -1918,7 +1918,7 @@
             const params = new URLSearchParams();
             if (site) params.set('site', site);
             if (search) params.set('search', search);
-            params.set('sort_by', visitorSortMode === 'note' ? 'last_note_at' : 'created_at');
+            params.set('sort_by', visitorSortMode === 'note' ? 'updated_at' : 'created_at');
             params.set('sort_order', 'desc');
             const url = `${API_BASE}/visitors?${params.toString()}`;
 

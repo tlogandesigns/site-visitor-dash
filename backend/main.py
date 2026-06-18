@@ -147,7 +147,7 @@ class SortField(str, Enum):
     BUYER_NAME = "buyer_name"
     SITE = "site"
     UPDATED_AT = "updated_at"
-    LAST_NOTE_AT = "last_note_at"
+
 
 class SortOrder(str, Enum):
     ASC = "asc"
@@ -1062,6 +1062,13 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
             "email": agent["email"]
         }
 
+        if visitor.represented:
+            return {
+                "id": visitor_id,
+                "synced": False,
+                "sync_error": "Skipped — visitor is represented"
+            }
+
         zapier_result = sync_to_zapier(visitor_dict, agent_dict)
 
         if zapier_result["success"]:
@@ -1328,11 +1335,12 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
 
             conn.commit()
 
-            sync_note_to_zapier(
-                {"note": note_text, "created_at": created_at},
-                dict(visitor),
-                dict(agent) if agent else {}
-            )
+            if not visitor["represented"]:
+                sync_note_to_zapier(
+                    {"note": note_text, "created_at": created_at},
+                    dict(visitor),
+                    dict(agent) if agent else {}
+                )
         else:
             conn.commit()
 
@@ -1409,7 +1417,10 @@ def add_note(visitor_id: int, note: NoteCreate, current_user: UserInDB = Depends
         visitor_dict = dict(visitor)
         agent_dict = dict(agent) if agent else {}
 
-        sync_result = sync_note_to_zapier(note_data, visitor_dict, agent_dict)
+        if visitor["represented"]:
+            sync_result = {"success": False, "error": "Skipped — visitor is represented"}
+        else:
+            sync_result = sync_note_to_zapier(note_data, visitor_dict, agent_dict)
 
         return {
             "id": note_id,
