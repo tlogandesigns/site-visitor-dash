@@ -1049,7 +1049,11 @@
             const marginTop = 60;
             let cursorY = marginTop;
 
-            const filename = `visitor-report-${report.date_range.start}-to-${report.date_range.end}.pdf`;
+            const siteSlug = (selectedSite || 'all-sites')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            const filename = `${siteSlug}-${report.date_range.start}-to-${report.date_range.end}.pdf`;
             doc.setProperties({
                 title: 'Visitor Performance Report',
                 subject: filename
