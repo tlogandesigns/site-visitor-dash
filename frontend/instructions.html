@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructions - New Homes Lead Tracker</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --cabernet: #670038;
+            --cabernet-light: #8a0049;
+            --cabernet-dark: #4a0028;
+        }
+
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .navbar {
+            background-color: var(--cabernet) !important;
+        }
+
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header, .accordion-button:not(.collapsed) {
+            background-color: var(--cabernet);
+            color: white;
+        }
+
+        .accordion-button:not(.collapsed)::after {
+            filter: brightness(0) invert(1);
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.75rem;
+            height: 1.75rem;
+            border-radius: 50%;
+            background-color: var(--cabernet);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .step-list li {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .step-list li:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-house-door"></i> New Homes Lead Tracker
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="analytics.html">
+                            <i class="bi bi-graph-up"></i> Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="instructions.html">
+                            <i class="bi bi-question-circle"></i> Instructions
+                        </a>
+                    </li>
+                    <li class="nav-item" id="adminInstructionsNavItem" style="display: none;">
+                        <a class="nav-link" href="admin-instructions.html">
+                            <i class="bi bi-shield-lock"></i> Admin Guide
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center text-white">
+                    <span class="me-3">
+                        <i class="bi bi-person-circle"></i> <span id="currentUsername">...</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4 mb-5">
+        <div class="row mb-3">
+            <div class="col">
+                <h2><i class="bi bi-question-circle"></i> User Instructions</h2>
+                <p class="text-muted">A quick guide to capturing and managing site visitors.</p>
+            </div>
+        </div>
+
+        <div class="accordion" id="instructionsAccordion">
+
+            <!-- Logging In -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secLogin">
+                        <i class="bi bi-box-arrow-in-right me-2"></i> Logging In
+                    </button>
+                </h2>
+                <div id="secLogin" class="accordion-collapse collapse show" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body">
+                        <p>Enter the username and password provided by your administrator on the login screen. Sessions last <strong>8 hours</strong> — you'll be asked to log in again after that.</p>
+                        <p class="mb-0">You'll only see visitors from the community (site) your agent profile is assigned to. If you work multiple communities, you'll see leads from all of them.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Overview -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secDashboard">
+                        <i class="bi bi-speedometer2 me-2"></i> Dashboard Overview
+                    </button>
+                </h2>
+                <div id="secDashboard" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body">
+                        <p>The top of the Dashboard shows three quick stats:</p>
+                        <ul>
+                            <li><strong>Total Visitors</strong> — all leads visible to you</li>
+                            <li><strong>Today's Visitors</strong> — leads captured today</li>
+                            <li><strong>CINC Synced</strong> — how many leads have successfully synced to CINC CRM</li>
+                        </ul>
+                        <p class="mb-0">Use the <strong>site filter</strong> dropdown in the top navigation bar to narrow the visitor list down to a single community.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Adding a Visitor -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secAddVisitor">
+                        <i class="bi bi-person-plus me-2"></i> Adding a New Visitor
+                    </button>
+                </h2>
+                <div id="secAddVisitor" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body">
+                        <ol class="step-list list-unstyled">
+                            <li><span class="step-number">1</span><span>Click <strong>Add New Visitor</strong> above the visitors table.</span></li>
+                            <li><span class="step-number">2</span><span>Fill in the visitor's <strong>name</strong> (or check <em>Name unknown</em> if they didn't share it), plus email and cell phone if available.</span></li>
+                            <li><span class="step-number">3</span><span>Answer the qualifying questions: first visit, interested product/floor plan, timeline, price range, area they're looking in, occupation, and how they heard about the community.</span></li>
+                            <li><span class="step-number">4</span><span>Set <strong>Represented?</strong> to Yes if the visitor is working with another agent, and enter the co-broker's name — this is required for compliance.</span></li>
+                            <li><span class="step-number">5</span><span>Choose the <strong>Site</strong> (required) and confirm the <strong>Capturing Agent</strong>.</span></li>
+                            <li><span class="step-number">6</span><span>Add any relevant notes, then click <strong>Save</strong>. The lead is created and automatically synced to CINC.</span></li>
+                        </ol>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-info-circle"></i> If a visitor doesn't provide an email or phone, the system generates a placeholder so the lead can still be tracked and synced.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Viewing, Searching, Sorting -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secSearch">
+                        <i class="bi bi-search me-2"></i> Searching & Sorting Visitors
+                    </button>
+                </h2>
+                <div id="secSearch" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body">
+                        <ul>
+                            <li>Use the <strong>search box</strong> above the table to find a visitor by name, phone, or email.</li>
+                            <li>Toggle between <strong>Last Added</strong> and <strong>Last Note</strong> to sort the table by when a lead was created versus when it was last followed up on.</li>
+                            <li>Click a row (or the actions button) to open full <strong>Visitor Details</strong>, including CINC sync status and full note history.</li>
+                        </ul>
+                        <p class="mb-0">Click <strong>Refresh</strong> at any time to pull the latest data.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secNotes">
+                        <i class="bi bi-chat-left-text me-2"></i> Adding Follow-Up Notes
+                    </button>
+                </h2>
+                <div id="secNotes" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body">
+                        <p>Open a visitor's details, type your update in the note box, and click <strong>Add Note</strong>. Notes are timestamped, show which teammate added them, and sync to CINC automatically so the full history stays visible to your whole team.</p>
+                        <p class="mb-0">Anyone with access to a site can see and add notes for leads at that site — great for team hand-offs.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Editing a Visitor -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secEdit">
+                        <i class="bi bi-pencil-square me-2"></i> Editing a Lead
+                    </button>
+                </h2>
+                <div id="secEdit" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">From the visitor row's actions menu, choose <strong>Edit</strong> to correct details like contact info, represented status, or interests. Only admins can delete a visitor record.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exporting -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secExport">
+                        <i class="bi bi-download me-2"></i> Exporting Data
+                    </button>
+                </h2>
+                <div id="secExport" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">Click <strong>Export</strong> in the top navigation bar to download your currently visible visitors as a CSV file — useful for reporting or spreadsheet review.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secAnalytics">
+                        <i class="bi bi-graph-up me-2"></i> Analytics Dashboard
+                    </button>
+                </h2>
+                <div id="secAnalytics" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">The <strong>Analytics</strong> tab shows charts and trends for the sites you have access to, and lets you download a PDF report for a selected date range and site.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secProfile">
+                        <i class="bi bi-person-circle me-2"></i> Managing Your Profile
+                    </button>
+                </h2>
+                <div id="secProfile" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body mb-0">
+                        <p>Go to <strong>Manage Profile</strong> on the Dashboard to update your email address or change your password. Your username and role cannot be changed — contact an administrator for those updates.</p>
+                        <p class="mb-0">Passwords must be at least 6 characters. You'll need to enter your current password to set a new one.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const API_BASE = '/api';
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('authToken');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        async function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                window.location.href = 'index.html';
+                return false;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/me`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return false;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const currentUser = await response.json();
+                document.getElementById('currentUsername').textContent = currentUser.username;
+
+                if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
+                    document.getElementById('adminInstructionsNavItem').style.display = 'block';
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                return false;
+            }
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>

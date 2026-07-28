@@ -248,6 +248,16 @@
                                 <i class="bi bi-graph-up"></i> Analytics
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="instructions.html">
+                                <i class="bi bi-question-circle"></i> Instructions
+                            </a>
+                        </li>
+                        <li class="nav-item" id="adminInstructionsNavItem" style="display: none;">
+                            <a class="nav-link" href="admin-instructions.html">
+                                <i class="bi bi-shield-lock"></i> Admin Guide
+                            </a>
+                        </li>
                     </ul>
                     <div class="d-flex align-items-center flex-wrap">
                         <select id="siteFilter" class="form-select form-select-sm me-2" style="width: auto;">
@@ -1623,6 +1633,7 @@
             if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
                 document.getElementById('usersTabNav').style.display = 'block';
                 document.getElementById('agentsTabNav').style.display = 'block';
+                document.getElementById('adminInstructionsNavItem').style.display = 'block';
 
                 // Show capturing agent field for admins/super_admins
                 document.getElementById('capturingAgentDiv').style.display = 'block';

@@ -112,6 +112,16 @@
                             <i class="bi bi-people"></i> Users
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="instructions.html">
+                            <i class="bi bi-question-circle"></i> Instructions
+                        </a>
+                    </li>
+                    <li class="nav-item" id="adminInstructionsNavItem" style="display: none;">
+                        <a class="nav-link" href="admin-instructions.html">
+                            <i class="bi bi-shield-lock"></i> Admin Guide
+                        </a>
+                    </li>
                 </ul>
                 <div class="d-flex align-items-center text-white">
                     <span class="me-3">
@@ -392,6 +402,7 @@
                 // Show users nav item for admins
                 if (currentUser.role === 'admin' || currentUser.role === 'super_admin') {
                     document.getElementById('usersNavItem').style.display = 'block';
+                    document.getElementById('adminInstructionsNavItem').style.display = 'block';
                 }
 
                 return true;

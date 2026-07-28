@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Guide - New Homes Lead Tracker</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --cabernet: #670038;
+            --cabernet-light: #8a0049;
+            --cabernet-dark: #4a0028;
+        }
+
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .navbar {
+            background-color: var(--cabernet) !important;
+        }
+
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header, .accordion-button:not(.collapsed) {
+            background-color: var(--cabernet);
+            color: white;
+        }
+
+        .accordion-button:not(.collapsed)::after {
+            filter: brightness(0) invert(1);
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.75rem;
+            height: 1.75rem;
+            border-radius: 50%;
+            background-color: var(--cabernet);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .step-list li {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .step-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        code {
+            color: var(--cabernet-dark);
+            background-color: rgba(103, 0, 56, 0.08);
+            padding: 0.1rem 0.35rem;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Access denied overlay (shown for non-admins) -->
+    <div id="accessDenied" class="d-none" style="min-height:100vh; display:flex; align-items:center; justify-content:center;">
+        <div class="text-center">
+            <i class="bi bi-shield-lock display-1 text-muted"></i>
+            <h3 class="mt-3">Admins Only</h3>
+            <p class="text-muted">This guide is only available to admin and super admin accounts.</p>
+            <a href="index.html" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div id="pageContent" class="d-none">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="index.html">
+                    <i class="bi bi-house-door"></i> New Homes Lead Tracker
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="index.html">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="analytics.html">
+                                <i class="bi bi-graph-up"></i> Analytics
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="instructions.html">
+                                <i class="bi bi-question-circle"></i> Instructions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="admin-instructions.html">
+                                <i class="bi bi-shield-lock"></i> Admin Guide
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center text-white">
+                        <span class="me-3">
+                            <i class="bi bi-person-circle"></i> <span id="currentUsername">...</span>
+                        </span>
+                        <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="container mt-4 mb-5">
+            <div class="row mb-3">
+                <div class="col">
+                    <h2><i class="bi bi-shield-lock"></i> Admin Guide</h2>
+                    <p class="text-muted">Managing users, agents, and site access. See the <a href="instructions.html">User Instructions</a> for day-to-day lead capture.</p>
+                </div>
+            </div>
+
+            <div class="accordion" id="adminAccordion">
+
+                <!-- Roles -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secRoles">
+                            <i class="bi bi-people me-2"></i> Understanding Roles & Access
+                        </button>
+                    </h2>
+                    <div id="secRoles" class="accordion-collapse collapse show" data-bs-parent="#adminAccordion">
+                        <div class="accordion-body">
+                            <ul>
+                                <li><strong>Super Admin / Admin</strong> — full access to every lead across all sites, can create and manage users, and manage agents.</li>
+                                <li><strong>User</strong> — site-based access. A user sees and can work every lead at any site their <em>linked agent</em> is assigned to. This lets a whole community team collaborate on the same leads.</li>
+                            </ul>
+                            <p class="mb-0">Because access is driven by the agent-to-site assignment (not the individual user), the fastest way to fix a "can't see my leads" issue is almost always to check the linked agent's site assignments in <strong>Agent Management</strong>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secUsers">
+                            <i class="bi bi-person-gear me-2"></i> User Management
+                        </button>
+                    </h2>
+                    <div id="secUsers" class="accordion-collapse collapse" data-bs-parent="#adminAccordion">
+                        <div class="accordion-body">
+                            <p>Open the <strong>User Management</strong> tab on the Dashboard.</p>
+                            <p class="fw-bold mb-1">Creating a user</p>
+                            <ol class="step-list list-unstyled">
+                                <li><span class="step-number">1</span><span>Click <strong>Add New User</strong>.</span></li>
+                                <li><span class="step-number">2</span><span>Enter a username and temporary password, and optionally an email.</span></li>
+                                <li><span class="step-number">3</span><span>Choose the <strong>Role</strong> (user / admin / super admin).</span></li>
+                                <li><span class="step-number">4</span><span>For a <code>user</code> role, select the <strong>Linked Agent</strong> — this is what determines which sites and leads they can see. A user account without a linked agent won't be able to create visitors or notes.</span></li>
+                                <li><span class="step-number">5</span><span>Save. Share the temporary password with the new user and have them change it from <strong>Manage Profile</strong>.</span></li>
+                            </ol>
+                            <p class="fw-bold mb-1 mt-3">Editing or deactivating a user</p>
+                            <p class="mb-0">Use the row actions to edit a user's email, role, linked agent, or reset their password. Uncheck <strong>Active</strong> to deactivate an account without deleting it — deactivated users can no longer log in.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Management -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secAgents">
+                            <i class="bi bi-briefcase me-2"></i> Agent Management
+                        </button>
+                    </h2>
+                    <div id="secAgents" class="accordion-collapse collapse" data-bs-parent="#adminAccordion">
+                        <div class="accordion-body">
+                            <p>Open the <strong>Agent Management</strong> tab. Agents represent the real-world sales agents leads are captured for, and they're the bridge between users and CINC.</p>
+                            <p class="fw-bold mb-1">Adding an agent</p>
+                            <ol class="step-list list-unstyled">
+                                <li><span class="step-number">1</span><span>Click <strong>Add New Agent</strong>.</span></li>
+                                <li><span class="step-number">2</span><span>Enter the agent's name and their <strong>CINC ID</strong> (required — this is how leads sync to the correct agent in CINC).</span></li>
+                                <li><span class="step-number">3</span><span>Add email/phone if available, then assign the <strong>Sites</strong> this agent covers.</span></li>
+                            </ol>
+                            <p class="mb-0">Editing an agent's site assignments immediately changes which leads any linked user accounts can see. Uncheck <strong>Active</strong> to retire an agent without losing their historical lead data.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CINC Sync -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secCinc">
+                            <i class="bi bi-arrow-repeat me-2"></i> CINC Sync & Troubleshooting
+                        </button>
+                    </h2>
+                    <div id="secCinc" class="accordion-collapse collapse" data-bs-parent="#adminAccordion">
+                        <div class="accordion-body">
+                            <p>New visitors and notes sync to CINC CRM automatically. A visitor's detail view shows a <strong>Synced</strong> or <strong>Pending</strong> badge.</p>
+                            <p class="mb-1">If leads consistently show as <strong>Pending</strong>:</p>
+                            <ul class="mb-0">
+                                <li>Confirm the capturing agent has a valid <strong>CINC ID</strong> in Agent Management.</li>
+                                <li>Confirm the <code>CINC_API_KEY</code> environment variable is set correctly on the server.</li>
+                                <li>A failed sync never blocks lead creation — the lead is still saved locally and can be manually reconciled later.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics & Reporting -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secAnalyticsAdmin">
+                            <i class="bi bi-graph-up me-2"></i> Analytics & Reporting
+                        </button>
+                    </h2>
+                    <div id="secAnalyticsAdmin" class="accordion-collapse collapse" data-bs-parent="#adminAccordion">
+                        <div class="accordion-body mb-0">
+                            <p class="mb-0">Admins see analytics across every site. Use the site and date range filters to review performance for a specific community, and download a PDF report to share with builders or ownership.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data & Backups -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secData">
+                            <i class="bi bi-database me-2"></i> Data, Backups & Bulk Import
+                        </button>
+                    </h2>
+                    <div id="secData" class="accordion-collapse collapse" data-bs-parent="#adminAccordion">
+                        <div class="accordion-body mb-0">
+                            <p>Deleting a visitor record is permanent and only available to admins from the visitor row's actions menu — use it sparingly, such as for accidental duplicate entries.</p>
+                            <p class="mb-0">Bulk agent import from Google Sheets and database backups are handled server-side by your technical administrator (via the <code>scripts/</code> folder), not from this web interface. Reach out to them if you need a new batch of agents imported or a database backup restored.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const API_BASE = '/api';
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('authToken');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        async function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/me`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const currentUser = await response.json();
+
+                if (currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
+                    document.getElementById('accessDenied').classList.remove('d-none');
+                    return;
+                }
+
+                document.getElementById('currentUsername').textContent = currentUser.username;
+                document.getElementById('pageContent').classList.remove('d-none');
+            } catch (error) {
+                console.error('Auth check failed:', error);
+            }
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>
