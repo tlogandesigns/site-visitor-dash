@@ -1155,10 +1155,10 @@ def list_visitors(
 
         # Date range filter
         if date_from:
-            where_conditions.append("DATE(created_at) >= DATE(?)")
+            where_conditions.append("DATE(created_at, 'localtime') >= DATE(?)")
             params.append(date_from)
         if date_to:
-            where_conditions.append("DATE(created_at) <= DATE(?)")
+            where_conditions.append("DATE(created_at, 'localtime') <= DATE(?)")
             params.append(date_to)
 
         # Purchase timeline filter
@@ -1743,7 +1743,7 @@ def get_stats(site: Optional[str] = None, current_user: UserInDB = Depends(get_c
 
                     today_visitors = cursor.execute("""
                         SELECT COUNT(*) as count FROM visitors
-                        WHERE site = ? AND DATE(created_at) = DATE('now')
+                        WHERE site = ? AND DATE(created_at, 'localtime') = DATE('now', 'localtime')
                     """, (site,)).fetchone()["count"]
 
                     cinc_synced = cursor.execute(
@@ -1765,7 +1765,7 @@ def get_stats(site: Optional[str] = None, current_user: UserInDB = Depends(get_c
 
                 today_visitors = cursor.execute(
                     f"""SELECT COUNT(*) as count FROM visitors
-                    WHERE site IN ({placeholders}) AND DATE(created_at) = DATE('now')""",
+                    WHERE site IN ({placeholders}) AND DATE(created_at, 'localtime') = DATE('now', 'localtime')""",
                     site_list
                 ).fetchone()["count"]
 
@@ -1781,7 +1781,7 @@ def get_stats(site: Optional[str] = None, current_user: UserInDB = Depends(get_c
 
                 today_visitors = cursor.execute("""
                     SELECT COUNT(*) as count FROM visitors
-                    WHERE site = ? AND DATE(created_at) = DATE('now')
+                    WHERE site = ? AND DATE(created_at, 'localtime') = DATE('now', 'localtime')
                 """, (site,)).fetchone()["count"]
             else:
                 total_visitors = cursor.execute(
@@ -1790,7 +1790,7 @@ def get_stats(site: Optional[str] = None, current_user: UserInDB = Depends(get_c
 
                 today_visitors = cursor.execute("""
                     SELECT COUNT(*) as count FROM visitors
-                    WHERE DATE(created_at) = DATE('now')
+                    WHERE DATE(created_at, 'localtime') = DATE('now', 'localtime')
                 """).fetchone()["count"]
 
             cinc_synced = cursor.execute(
@@ -1826,10 +1826,10 @@ def get_analytics(site: Optional[str] = None, current_user: UserInDB = Depends(g
 
         # Leads by day (last 30 days)
         leads_by_day = cursor.execute(f"""
-            SELECT DATE(created_at) as date, COUNT(*) as count
+            SELECT DATE(created_at, 'localtime') as date, COUNT(*) as count
             FROM visitors
             {where_clause}
-            GROUP BY DATE(created_at)
+            GROUP BY DATE(created_at, 'localtime')
             ORDER BY date DESC
             LIMIT 30
         """, params).fetchall()

@@ -5,7 +5,12 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# Default timezone for local-day calculations (leads-by-day, "today" stats, date filters);
+# overridden by the TZ environment variable in docker-compose.yml
+ENV TZ=America/New_York
 
 # Copy requirements
 COPY backend/requirements.txt .
