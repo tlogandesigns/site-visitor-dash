@@ -797,9 +797,11 @@ def sync_represented_followup_to_zapier(visitor: sqlite3.Row, days_elapsed: int)
 
 def check_represented_followups():
     """
-    Find represented visitors logged 60+ days ago that haven't been
-    notified yet, and send a follow-up email via Zapier to the user
-    who logged them.
+    Find represented visitors that turn exactly 60 days old today and
+    haven't been notified yet, and send a follow-up email via Zapier
+    to the user who logged them. Using an exact match (rather than
+    "60+ days") avoids emailing every old represented visitor in a
+    single burst the first time this job runs.
     """
     with get_db() as conn:
         cursor = conn.cursor()
@@ -813,7 +815,7 @@ def check_represented_followups():
             LEFT JOIN users u ON v.created_by_user_id = u.id
             WHERE v.represented = 1
               AND v.represented_notified_at IS NULL
-              AND DATE(v.created_at, 'localtime') <= DATE('now', 'localtime', '-60 days')
+              AND DATE(v.created_at, 'localtime') = DATE('now', 'localtime', '-60 days')
         """).fetchall()
 
         for visitor in rows:

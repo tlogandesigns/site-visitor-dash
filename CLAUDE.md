@@ -282,7 +282,7 @@ Required in `.env` file:
 
 ### 60-Day Represented Visitor Follow-Up (2026)
 - Represented visitors are skipped from CINC sync at creation time (see `sync_to_cinc()`/`sync_to_zapier()` callers), so they need a manual compliance follow-up
-- An in-process APScheduler job (`check_represented_followups()` in `backend/main.py`) runs daily at 8am and finds represented visitors logged 60+ calendar days ago (Eastern time, via SQLite `'localtime'`) that haven't been notified yet
+- An in-process APScheduler job (`check_represented_followups()` in `backend/main.py`) runs daily at 8am and finds represented visitors that turn *exactly* 60 calendar days old that day (Eastern time, via SQLite `'localtime'`) — an exact-day match rather than "60+ days" so deploying against existing data doesn't fire a burst of emails for old leads that already passed day 60
 - Sends a payload to `ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL` addressed to the email of the user who originally logged the visitor (`created_by_user_id`); the Zap is responsible for actually sending the email
 - `visitors.represented_notified_at` tracks whether the follow-up was already sent, preventing duplicate emails; set on successful webhook delivery (or immediately if the creating user has no email on file)
 - `POST /admin/check-represented-followups` (admin only) manually re-runs the check, useful for testing without waiting for the daily schedule
