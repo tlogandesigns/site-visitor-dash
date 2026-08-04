@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS visitors (
     cinc_synced BOOLEAN DEFAULT 0,
     cinc_sync_at TIMESTAMP,
     cinc_lead_id TEXT,
+    represented_notified_at TIMESTAMP,  -- When the 60-day represented follow-up email was sent
 
     FOREIGN KEY (capturing_agent_id) REFERENCES agents(id)
 );

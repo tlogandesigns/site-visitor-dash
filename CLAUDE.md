@@ -219,6 +219,8 @@ Required in `.env` file:
 - `CINC_API_KEY` - CINC CRM API key (required for lead sync)
 - `DATABASE_PATH` - Path to SQLite DB (default: /data/leads.db)
 - `JWT_SECRET_KEY` - Secret key for JWT token signing (CHANGE IN PRODUCTION!)
+- `ZAPIER_WEBHOOK_URL` - Zapier webhook for lead/note sync to CINC
+- `ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL` - Zapier webhook for the 60-day represented visitor follow-up email (optional; skipped if unset)
 - `GOOGLE_SHEET_KEY` - Google Sheet ID for agent import (optional)
 - `WORKSHEET_NAME` - Sheet name for agents (optional, default: "Sheet1")
 
@@ -277,6 +279,14 @@ Required in `.env` file:
 - **Phone**: Sends `5555555555` to webhook when no phone provided
   - Not stored in database (webhook only)
   - Ensures CINC can process all leads
+
+### 60-Day Represented Visitor Follow-Up (2026)
+- Represented visitors are skipped from CINC sync at creation time (see `sync_to_cinc()`/`sync_to_zapier()` callers), so they need a manual compliance follow-up
+- An in-process APScheduler job (`check_represented_followups()` in `backend/main.py`) runs daily at 8am and finds represented visitors logged 60+ calendar days ago (Eastern time, via SQLite `'localtime'`) that haven't been notified yet
+- Sends a payload to `ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL` addressed to the email of the user who originally logged the visitor (`created_by_user_id`); the Zap is responsible for actually sending the email
+- `visitors.represented_notified_at` tracks whether the follow-up was already sent, preventing duplicate emails; set on successful webhook delivery (or immediately if the creating user has no email on file)
+- `POST /admin/check-represented-followups` (admin only) manually re-runs the check, useful for testing without waiting for the daily schedule
+- Existing databases need `scripts/migrate_add_represented_notification.py` run once to add the new column
 
 ### CINC Integration Enhancements
 - **Note Syncing**: Notes are automatically synced to CINC when added

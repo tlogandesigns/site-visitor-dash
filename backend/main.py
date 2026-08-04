@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 import sqlite3
 import requests
 import csv
@@ -22,6 +24,8 @@ import re
 import uuid
 from contextlib import contextmanager, asynccontextmanager
 from collections import defaultdict
+
+scheduler = AsyncIOScheduler(timezone=os.getenv("TZ", "America/New_York"))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -46,9 +50,19 @@ async def lifespan(app: FastAPI):
     # Initialize super admin
     initialize_super_admin()
 
+    # Run the represented-visitor 60-day follow-up check once a day
+    scheduler.add_job(
+        check_represented_followups,
+        CronTrigger(hour=8, minute=0),
+        id="represented_followup_check",
+        replace_existing=True,
+    )
+    scheduler.start()
+
     yield  # Application runs
 
     # Shutdown: Add any cleanup here if needed
+    scheduler.shutdown()
     print("Application shutting down")
 
 app = FastAPI(title="New Homes Lead Tracker", version="1.0.0", lifespan=lifespan)
@@ -65,6 +79,7 @@ app.add_middleware(
 # Configuration
 DATABASE_PATH = os.getenv("DATABASE_PATH", "leads.db")
 ZAPIER_WEBHOOK_URL = os.getenv("ZAPIER_WEBHOOK_URL", "")  # Zapier webhook for lead sync
+ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL = os.getenv("ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL", "")  # Zapier webhook for 60-day represented follow-up emails
 
 # Security Configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
@@ -736,6 +751,89 @@ def sync_note_to_zapier(note_data: dict, visitor_data: dict, agent_data: dict) -
 
     except requests.exceptions.RequestException as e:
         return {"success": False, "error": str(e)}
+
+def sync_represented_followup_to_zapier(visitor: sqlite3.Row, days_elapsed: int) -> dict:
+    """
+    Notify the user who logged a represented visitor that 60 days have passed.
+    Posted to a dedicated Zapier webhook which sends the actual email.
+    """
+    if not ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL:
+        return {"success": False, "error": "Represented follow-up webhook URL not configured"}
+
+    try:
+        payload = {
+            "type": "represented_followup",
+
+            # Recipient
+            "recipientEmail": visitor["creator_email"] or "",
+            "recipientUsername": visitor["created_by_username"] or "",
+
+            # Visitor/Lead Information
+            "visitorId": visitor["id"],
+            "buyerName": visitor["buyer_name"],
+            "cobrokerName": visitor["cobroker_name"] or "",
+            "site": visitor["site"],
+            "agentName": visitor["agent_name"] or "",
+            "daysElapsed": days_elapsed,
+            "visitDate": visitor["created_at"],
+
+            # Metadata
+            "source": "New Homes Lead Tracker",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        response = requests.post(
+            ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+
+        response.raise_for_status()
+        return {"success": True, "zapier_response": response.status_code}
+
+    except requests.exceptions.RequestException as e:
+        return {"success": False, "error": str(e)}
+
+def check_represented_followups():
+    """
+    Find represented visitors logged 60+ days ago that haven't been
+    notified yet, and send a follow-up email via Zapier to the user
+    who logged them.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        rows = cursor.execute("""
+            SELECT v.id, v.buyer_name, v.cobroker_name, v.site, v.created_at,
+                   v.created_by_username, a.name as agent_name,
+                   u.email as creator_email,
+                   CAST(JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE(v.created_at, 'localtime')) AS INTEGER) as days_elapsed
+            FROM visitors v
+            LEFT JOIN agents a ON v.capturing_agent_id = a.id
+            LEFT JOIN users u ON v.created_by_user_id = u.id
+            WHERE v.represented = 1
+              AND v.represented_notified_at IS NULL
+              AND DATE(v.created_at, 'localtime') <= DATE('now', 'localtime', '-60 days')
+        """).fetchall()
+
+        for visitor in rows:
+            if not visitor["creator_email"]:
+                print(f"Represented follow-up: visitor {visitor['id']} has no user email to notify, skipping (marking as notified)")
+                cursor.execute(
+                    "UPDATE visitors SET represented_notified_at = ? WHERE id = ?",
+                    (datetime.now(timezone.utc).isoformat(), visitor["id"])
+                )
+                continue
+
+            result = sync_represented_followup_to_zapier(visitor, visitor["days_elapsed"])
+
+            if result["success"]:
+                cursor.execute(
+                    "UPDATE visitors SET represented_notified_at = ? WHERE id = ?",
+                    (datetime.now(timezone.utc).isoformat(), visitor["id"])
+                )
+            else:
+                print(f"Represented follow-up: failed to notify for visitor {visitor['id']}: {result.get('error')}")
 
 # API Endpoints
 
@@ -2182,6 +2280,12 @@ def get_visitor_report(
         }
 
         return response
+
+@app.post("/admin/check-represented-followups")
+def trigger_represented_followup_check(current_user: UserInDB = Depends(get_current_admin_user)):
+    """Manually run the 60-day represented follow-up check (admin only, for testing)"""
+    check_represented_followups()
+    return {"status": "completed"}
 
 def initialize_super_admin():
     """Initialize or update super admin user on startup"""
