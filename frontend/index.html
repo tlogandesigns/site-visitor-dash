@@ -1364,7 +1364,10 @@
         function getProtectionStatus(visitor) {
             if (!visitor.represented) return null;
             const daysElapsed = Math.floor((Date.now() - parseTS(visitor.created_at).getTime()) / 86400000);
-            return daysElapsed >= 60
+            if (daysElapsed === 60) {
+                return { label: 'Expiring', className: 'bg-warning text-dark' };
+            }
+            return daysElapsed > 60
                 ? { label: 'Expired', className: 'bg-secondary' }
                 : { label: 'Protected', className: 'bg-info text-dark' };
         }
