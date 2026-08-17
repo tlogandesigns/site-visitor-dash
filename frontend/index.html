@@ -377,6 +377,7 @@
                                 <th>Site</th>
                                 <th>Agent</th>
                                 <th>Represented</th>
+                                <th>Protection</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1339,6 +1340,19 @@
         function formatDateTime(ts) { return parseTS(ts).toLocaleString('en-US', ET); }
         function formatDate(ts) { return parseTS(ts).toLocaleDateString('en-US', ET); }
 
+        // Represented visitors are protected for 60 days from their visit date
+        function getProtectionStatus(visitor) {
+            if (!visitor.represented) return null;
+            const daysElapsed = Math.floor((Date.now() - parseTS(visitor.created_at).getTime()) / 86400000);
+            return daysElapsed >= 60
+                ? { label: 'Expired', className: 'bg-secondary' }
+                : { label: 'Protected', className: 'bg-info text-dark' };
+        }
+        function protectionBadgeHTML(visitor) {
+            const status = getProtectionStatus(visitor);
+            return status ? `<span class="badge ${status.className}">${status.label}</span>` : '<span class="text-muted">-</span>';
+        }
+
         let currentVisitorId = null;
         let agents = [];
         let sites = [];
@@ -1946,7 +1960,7 @@
                 loading.style.display = 'none';
                 
                 if (data.visitors.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No visitors yet</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No visitors yet</td></tr>';
                     return;
                 }
 
@@ -1976,6 +1990,7 @@
                         <td>${visitor.site}</td>
                         <td>${visitor.created_by_username || visitor.agent_name || '-'}</td>
                         <td>${representedBadge}</td>
+                        <td>${protectionBadgeHTML(visitor)}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showVisitorDetail(${visitor.id})">
                                 <i class="bi bi-eye"></i>
@@ -1989,7 +2004,7 @@
             } catch (error) {
                 console.error('Error loading visitors:', error);
                 loading.style.display = 'none';
-                tableBody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading data</td></tr>';
             }
         }
 
@@ -2286,6 +2301,7 @@
                             <p><strong>Current Location:</strong> ${visitor.location_current || '-'}</p>
                             <p><strong>Occupation:</strong> ${visitor.occupation || '-'}</p>
                             <p><strong>Represented:</strong> ${visitor.represented ? 'Yes - ' + (visitor.cobroker_name || 'Unknown') : 'No'}</p>
+                            ${visitor.represented ? `<p><strong>Protection Status:</strong> ${protectionBadgeHTML(visitor)}</p>` : ''}
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-muted">Visit Information</h6>
