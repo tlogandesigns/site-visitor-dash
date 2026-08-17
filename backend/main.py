@@ -168,6 +168,12 @@ class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
 
+
+class ProtectionStatus(str, Enum):
+    PROTECTED = "protected"    # represented, < 60 days since visit
+    EXPIRED = "expired"        # represented, >= 60 days since visit
+    NONE = "none"              # not represented — protection doesn't apply
+
 # Helper Functions for Validation
 def validate_phone_number(phone: str) -> str:
     """Validate and normalize phone number"""
@@ -1197,6 +1203,7 @@ def list_visitors(
     purchase_timeline: Optional[PurchaseTimeline] = None,
     price_range: Optional[PriceRange] = None,
     cinc_synced: Optional[bool] = None,
+    protection_status: Optional[ProtectionStatus] = None,
     current_user: UserInDB = Depends(get_current_user)
 ):
     """
@@ -1215,6 +1222,7 @@ def list_visitors(
     - purchase_timeline: Filter by purchase timeline
     - price_range: Filter by price range
     - cinc_synced: Filter by CINC sync status (true/false)
+    - protection_status: Filter by 60-day represented-visitor protection window (protected, expired, none)
     """
     # Validate pagination
     if page < 1:
@@ -1275,6 +1283,18 @@ def list_visitors(
         if cinc_synced is not None:
             where_conditions.append("cinc_synced = ?")
             params.append(1 if cinc_synced else 0)
+
+        # Protection status filter (60-day represented-visitor window)
+        if protection_status == ProtectionStatus.PROTECTED:
+            where_conditions.append(
+                "(represented = 1 AND JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE(created_at, 'localtime')) < 60)"
+            )
+        elif protection_status == ProtectionStatus.EXPIRED:
+            where_conditions.append(
+                "(represented = 1 AND JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE(created_at, 'localtime')) >= 60)"
+            )
+        elif protection_status == ProtectionStatus.NONE:
+            where_conditions.append("(represented = 0 OR represented IS NULL)")
 
         # Construct WHERE clause
         where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"

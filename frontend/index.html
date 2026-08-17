@@ -356,6 +356,12 @@
                     <button type="button" class="btn btn-primary" id="sortByAdded" onclick="setSortMode('added')">Last Added</button>
                     <button type="button" class="btn btn-outline-primary" id="sortByNote" onclick="setSortMode('note')">Last Note</button>
                 </div>
+                <select id="protectionFilter" class="form-select form-select-sm w-auto flex-shrink-0">
+                    <option value="">All Protection</option>
+                    <option value="protected">Protected</option>
+                    <option value="expired">Expired</option>
+                    <option value="none">N/A (Not Represented)</option>
+                </select>
                 <input type="search" id="visitorSearch" class="form-control form-control-sm w-auto" placeholder="Search by name, phone, email…" style="min-width:220px;">
             </div>
             <div class="card-body">
@@ -1746,6 +1752,11 @@
                 loadStats();
             });
 
+            // Protection status filter change
+            document.getElementById('protectionFilter').addEventListener('change', function() {
+                loadVisitors();
+            });
+
             // Visitor search (debounced)
             let visitorSearchTimer;
             document.getElementById('visitorSearch').addEventListener('input', function() {
@@ -1940,9 +1951,11 @@
 
             const site = document.getElementById('siteFilter').value;
             const search = document.getElementById('visitorSearch').value.trim();
+            const protectionStatus = document.getElementById('protectionFilter').value;
             const params = new URLSearchParams();
             if (site) params.set('site', site);
             if (search) params.set('search', search);
+            if (protectionStatus) params.set('protection_status', protectionStatus);
             params.set('sort_by', visitorSortMode === 'note' ? 'updated_at' : 'created_at');
             params.set('sort_order', 'desc');
             const url = `${API_BASE}/visitors?${params.toString()}`;
