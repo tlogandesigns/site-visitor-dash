@@ -393,6 +393,19 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                    <span class="text-muted small" id="visitorsPageInfo"></span>
+                    <nav aria-label="Visitors pagination">
+                        <ul class="pagination pagination-sm mb-0" id="visitorsPagination">
+                            <li class="page-item" id="visitorsPrevItem">
+                                <button type="button" class="page-link" onclick="goToVisitorsPage(currentVisitorsPage - 1)">Previous</button>
+                            </li>
+                            <li class="page-item" id="visitorsNextItem">
+                                <button type="button" class="page-link" onclick="goToVisitorsPage(currentVisitorsPage + 1)">Next</button>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
             </div>
         </div>
             </div>
@@ -1749,12 +1762,14 @@
 
             // Site filter change
             document.getElementById('siteFilter').addEventListener('change', function() {
+                currentVisitorsPage = 1;
                 loadVisitors();
                 loadStats();
             });
 
             // Protection status filter change
             document.getElementById('protectionFilter').addEventListener('change', function() {
+                currentVisitorsPage = 1;
                 loadVisitors();
             });
 
@@ -1762,6 +1777,7 @@
             let visitorSearchTimer;
             document.getElementById('visitorSearch').addEventListener('input', function() {
                 clearTimeout(visitorSearchTimer);
+                currentVisitorsPage = 1;
                 visitorSearchTimer = setTimeout(loadVisitors, 300);
             });
 
@@ -1935,12 +1951,38 @@
 
         // Load visitors
         let visitorSortMode = 'added';
+        let currentVisitorsPage = 1;
+        const VISITORS_PAGE_SIZE = 50;
 
         function setSortMode(mode) {
             visitorSortMode = mode;
+            currentVisitorsPage = 1;
             document.getElementById('sortByAdded').className = mode === 'added' ? 'btn btn-primary btn-sm' : 'btn btn-outline-primary btn-sm';
             document.getElementById('sortByNote').className = mode === 'note' ? 'btn btn-primary btn-sm' : 'btn btn-outline-primary btn-sm';
             loadVisitors();
+        }
+
+        function goToVisitorsPage(page) {
+            if (page < 1) return;
+            currentVisitorsPage = page;
+            loadVisitors();
+        }
+
+        function updateVisitorsPagination(data) {
+            const pageInfo = document.getElementById('visitorsPageInfo');
+            const prevItem = document.getElementById('visitorsPrevItem');
+            const nextItem = document.getElementById('visitorsNextItem');
+
+            if (data.total === 0) {
+                pageInfo.textContent = 'No visitors';
+            } else {
+                const start = (data.page - 1) * data.page_size + 1;
+                const end = Math.min(data.page * data.page_size, data.total);
+                pageInfo.textContent = `Showing ${start}-${end} of ${data.total}`;
+            }
+
+            prevItem.className = data.page <= 1 ? 'page-item disabled' : 'page-item';
+            nextItem.className = data.page >= data.total_pages ? 'page-item disabled' : 'page-item';
         }
 
         async function loadVisitors() {
@@ -1959,6 +2001,8 @@
             if (protectionStatus) params.set('protection_status', protectionStatus);
             params.set('sort_by', visitorSortMode === 'note' ? 'updated_at' : 'created_at');
             params.set('sort_order', 'desc');
+            params.set('page', currentVisitorsPage);
+            params.set('page_size', VISITORS_PAGE_SIZE);
             const url = `${API_BASE}/visitors?${params.toString()}`;
 
             try {
@@ -1972,7 +2016,8 @@
                 const data = await response.json();
                 
                 loading.style.display = 'none';
-                
+                updateVisitorsPagination(data);
+
                 if (data.visitors.length === 0) {
                     tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No visitors yet</td></tr>';
                     return;
@@ -2018,6 +2063,7 @@
             } catch (error) {
                 console.error('Error loading visitors:', error);
                 loading.style.display = 'none';
+                document.getElementById('visitorsPageInfo').textContent = '';
                 tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading data</td></tr>';
             }
         }
