@@ -1360,10 +1360,20 @@
         function formatDateTime(ts) { return parseTS(ts).toLocaleString('en-US', ET); }
         function formatDate(ts) { return parseTS(ts).toLocaleDateString('en-US', ET); }
 
+        // Eastern calendar date (YYYY-MM-DD) for a given Date, so day-elapsed math
+        // matches by calendar day rather than by raw 24h ms deltas (which would give
+        // different results for visitors logged at different times on the same day)
+        const etDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+        function etDateOnly(date) {
+            return etDateFormatter.format(date);
+        }
+
         // Represented visitors are protected for 60 days from their visit date
         function getProtectionStatus(visitor) {
             if (!visitor.represented) return null;
-            const daysElapsed = Math.floor((Date.now() - parseTS(visitor.created_at).getTime()) / 86400000);
+            const createdDay = Date.parse(etDateOnly(parseTS(visitor.created_at)));
+            const today = Date.parse(etDateOnly(new Date()));
+            const daysElapsed = Math.round((today - createdDay) / 86400000);
             if (daysElapsed === 60) {
                 return { label: 'Expiring', className: 'bg-warning text-dark' };
             }
