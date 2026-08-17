@@ -1668,11 +1668,13 @@ def export_visitors_csv(site: Optional[str] = None, current_user: UserInDB = Dep
         # Create CSV in memory with notes
         output = io.StringIO()
 
-        # Define custom fieldnames including notes column
-        base_fieldnames = [desc[0] for desc in cursor.description]
+        # Define custom fieldnames including notes column.
+        # Excludes contact info (email/phone) so exported reports don't carry it.
+        excluded_fields = {'buyer_email', 'buyer_phone', 'cobroker_email'}
+        base_fieldnames = [desc[0] for desc in cursor.description if desc[0] not in excluded_fields]
         fieldnames = base_fieldnames + ['all_notes']
 
-        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
 
         for visitor in visitors:
