@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS visitors (
     represented BOOLEAN DEFAULT 0,
     cobroker_name TEXT,  -- Only if represented
     cobroker_email TEXT,  -- Only if represented; collected for later use, not shown in the visitor log
+    protection_renewed_at TIMESTAMP,  -- Set when registration is renewed; resets the 60-day protection clock
 
     -- Location
     is_local BOOLEAN DEFAULT 1,

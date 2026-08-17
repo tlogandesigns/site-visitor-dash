@@ -938,6 +938,9 @@
                     <button type="button" class="btn btn-secondary" id="editVisitorBtn" style="display: none;" onclick="showEditVisitor()">
                         <i class="bi bi-pencil"></i> Edit Lead
                     </button>
+                    <button type="button" class="btn btn-info" id="renewRegistrationBtn" style="display: none;" onclick="renewRegistration()">
+                        <i class="bi bi-arrow-clockwise"></i> Renew Registration
+                    </button>
                     <div class="input-group flex-grow-1">
                         <input type="text" class="form-control" id="newNote" placeholder="Add a note...">
                         <button class="btn btn-primary" onclick="addNote()">
@@ -1378,10 +1381,12 @@
             return etDateFormatter.format(date);
         }
 
-        // Represented visitors are protected for 60 days from their visit date
+        // Represented visitors are protected for 60 days from their visit date,
+        // or from their last registration renewal if one was performed
         function getProtectionStatus(visitor) {
             if (!visitor.represented) return null;
-            const createdDay = Date.parse(etDateOnly(parseTS(visitor.created_at)));
+            const baseline = visitor.protection_renewed_at || visitor.created_at;
+            const createdDay = Date.parse(etDateOnly(parseTS(baseline)));
             const today = Date.parse(etDateOnly(new Date()));
             const daysElapsed = Math.round((today - createdDay) / 86400000);
             if (daysElapsed === 60) {
@@ -2367,6 +2372,10 @@
                     editBtn.style.display = 'none';
                 }
 
+                // Show/hide renew registration button: represented visitors, admins/super_admins or the creator
+                const renewBtn = document.getElementById('renewRegistrationBtn');
+                renewBtn.style.display = (visitor.represented && (isAdminUser || isCreator)) ? 'block' : 'none';
+
                 // Store visitor data and capturing_agent_id for note creation / editing
                 const visitorDetailModal = document.getElementById('visitorDetailModal');
                 visitorDetailModal.dataset.capturingAgentId = visitor.capturing_agent_id;
@@ -2386,7 +2395,7 @@
                             <p><strong>Current Location:</strong> ${visitor.location_current || '-'}</p>
                             <p><strong>Occupation:</strong> ${visitor.occupation || '-'}</p>
                             <p><strong>Represented:</strong> ${visitor.represented ? 'Yes - ' + (visitor.cobroker_name || 'Unknown') : 'No'}</p>
-                            ${visitor.represented ? `<p><strong>Protection Status:</strong> ${protectionBadgeHTML(visitor)}</p>` : ''}
+                            ${visitor.represented ? `<p><strong>Protection Status:</strong> ${protectionBadgeHTML(visitor)}${visitor.protection_renewed_at ? ` <span class="text-muted">(renewed ${formatDate(visitor.protection_renewed_at)})</span>` : ''}</p>` : ''}
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-muted">Visit Information</h6>
@@ -2599,6 +2608,41 @@
                 },
                 'Delete Lead',
                 'btn-danger'
+            );
+        }
+
+        // Renew a represented visitor's 60-day protection window
+        function renewRegistration() {
+            showConfirm(
+                'This will reset the 60-day protection clock to today. Continue?',
+                'Renew Registration',
+                async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/visitors/${currentVisitorId}/renew-registration`, {
+                            method: 'POST',
+                            headers: getAuthHeaders()
+                        });
+
+                        if (response.status === 401) {
+                            handleLogout();
+                            return;
+                        }
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw errorData;
+                        }
+
+                        showToast('Registration renewed — protection reset to today', 'success');
+                        showVisitorDetail(currentVisitorId);
+                        loadVisitors();
+                    } catch (error) {
+                        console.error('Error renewing registration:', error);
+                        await handleApiError(error, 'Failed to renew registration');
+                    }
+                },
+                'Renew Registration',
+                'btn-primary'
             );
         }
 

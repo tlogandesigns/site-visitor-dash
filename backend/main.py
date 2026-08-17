@@ -805,11 +805,11 @@ def sync_represented_followup_to_zapier(visitor: sqlite3.Row, days_elapsed: int)
 
 def check_represented_followups():
     """
-    Find represented visitors that turn exactly 60 days old today and
-    haven't been notified yet, and send a follow-up email via Zapier
-    to the user who logged them. Using an exact match (rather than
-    "60+ days") avoids emailing every old represented visitor in a
-    single burst the first time this job runs.
+    Find represented visitors that turn exactly 60 days old today (relative
+    to their last registration renewal, if any) and haven't been notified
+    yet, and send a follow-up email via Zapier to the user who logged them.
+    Using an exact match (rather than "60+ days") avoids emailing every old
+    represented visitor in a single burst the first time this job runs.
     """
     with get_db() as conn:
         cursor = conn.cursor()
@@ -817,13 +817,13 @@ def check_represented_followups():
             SELECT v.id, v.buyer_name, v.cobroker_name, v.site, v.created_at,
                    v.created_by_username, a.name as agent_name,
                    u.email as creator_email,
-                   CAST(JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE(v.created_at, 'localtime')) AS INTEGER) as days_elapsed
+                   CAST(JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE(COALESCE(v.protection_renewed_at, v.created_at), 'localtime')) AS INTEGER) as days_elapsed
             FROM visitors v
             LEFT JOIN agents a ON v.capturing_agent_id = a.id
             LEFT JOIN users u ON v.created_by_user_id = u.id
             WHERE v.represented = 1
               AND v.represented_notified_at IS NULL
-              AND DATE(v.created_at, 'localtime') = DATE('now', 'localtime', '-60 days')
+              AND DATE(COALESCE(v.protection_renewed_at, v.created_at), 'localtime') = DATE('now', 'localtime', '-60 days')
         """).fetchall()
 
         for visitor in rows:
@@ -1286,14 +1286,15 @@ def list_visitors(
             where_conditions.append("cinc_synced = ?")
             params.append(1 if cinc_synced else 0)
 
-        # Protection status filter (60-day represented-visitor window)
+        # Protection status filter (60-day represented-visitor window, reset by registration renewal)
+        protection_baseline = "COALESCE(protection_renewed_at, created_at)"
         if protection_status == ProtectionStatus.PROTECTED:
             where_conditions.append(
-                "(represented = 1 AND JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE(created_at, 'localtime')) < 60)"
+                f"(represented = 1 AND JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE({protection_baseline}, 'localtime')) < 60)"
             )
         elif protection_status == ProtectionStatus.EXPIRED:
             where_conditions.append(
-                "(represented = 1 AND JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE(created_at, 'localtime')) >= 60)"
+                f"(represented = 1 AND JULIANDAY(DATE('now', 'localtime')) - JULIANDAY(DATE({protection_baseline}, 'localtime')) >= 60)"
             )
         elif protection_status == ProtectionStatus.NONE:
             where_conditions.append("(represented = 0 OR represented IS NULL)")
@@ -1469,6 +1470,51 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
             conn.commit()
 
         return {"message": "Visitor updated successfully"}
+
+@app.post("/visitors/{visitor_id}/renew-registration")
+def renew_registration(visitor_id: int, current_user: UserInDB = Depends(get_current_user)):
+    """
+    Renew a represented visitor's 60-day protection window, resetting the
+    clock to now. Clears represented_notified_at so the 60-day follow-up
+    email fires again relative to the new renewal date.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        visitor = cursor.execute(
+            "SELECT * FROM visitors WHERE id = ?",
+            (visitor_id,)
+        ).fetchone()
+
+        if not visitor:
+            raise HTTPException(status_code=404, detail="Visitor not found")
+
+        is_admin = current_user.role in ("admin", "super_admin")
+        is_creator = visitor["created_by_user_id"] == current_user.id
+
+        if not is_admin and not is_creator:
+            raise HTTPException(status_code=403, detail="Not authorized to renew this visitor's registration")
+
+        if not visitor["represented"]:
+            raise HTTPException(status_code=400, detail="Only represented visitors have a protection window to renew")
+
+        renewed_at = datetime.now(timezone.utc).isoformat()
+
+        cursor.execute(
+            "UPDATE visitors SET protection_renewed_at = ?, represented_notified_at = NULL WHERE id = ?",
+            (renewed_at, visitor_id)
+        )
+
+        agent_id = current_user.agent_id or visitor["capturing_agent_id"]
+        note_text = f"[Renewed by {current_user.username}] Registration renewed — 60-day protection reset"
+        cursor.execute(
+            "INSERT INTO visitor_notes (visitor_id, agent_id, note) VALUES (?, ?, ?)",
+            (visitor_id, agent_id, note_text)
+        )
+
+        conn.commit()
+
+        return {"message": "Registration renewed successfully", "protection_renewed_at": renewed_at}
 
 @app.get("/visitors/check/name")
 def check_visitor_name(name: str, current_user: UserInDB = Depends(get_current_user)):
