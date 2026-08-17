@@ -2134,8 +2134,6 @@ def get_visitor_report(
             SELECT
                 v.id,
                 v.buyer_name,
-                v.buyer_phone,
-                v.buyer_email,
                 v.first_visit,
                 v.interested_in,
                 v.purchase_timeline,
@@ -2253,8 +2251,6 @@ def get_visitor_report(
             visitor = {
                 "id": row["id"],
                 "buyer_name": row["buyer_name"],
-                "buyer_phone": row["buyer_phone"],
-                "buyer_email": row["buyer_email"],
                 "first_visit": first_visit_value if first_visit_value is None else bool(first_visit_value),
                 "interested_in": interested_in_values,
                 "purchase_timeline": row["purchase_timeline"] or "Unknown",

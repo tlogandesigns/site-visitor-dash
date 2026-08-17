@@ -1140,15 +1140,13 @@
                 const leadRows = allVisitors.map((visitor, index) => [
                     index + 1,
                     visitor.buyer_name || '—',
-                    visitor.buyer_phone || '—',
-                    visitor.buyer_email || '—',
                     visitor.site || '—',
                     visitor.capturing_agent || '—',
                     visitor.created_at ? formatDateForReport(visitor.created_at) : '—'
                 ]);
 
                 doc.autoTable({
-                    head: [['#', 'Buyer', 'Phone', 'Email', 'Site', 'Agent', 'Logged']],
+                    head: [['#', 'Buyer', 'Site', 'Agent', 'Logged']],
                     body: leadRows,
                     startY: cursorY,
                     margin: { left: marginX, right: marginX },
@@ -1171,12 +1169,10 @@
                     },
                     columnStyles: {
                         0: { cellWidth: 24 },
-                        1: { cellWidth: 95 },
-                        2: { cellWidth: 65 },
-                        3: { cellWidth: 120 },
-                        4: { cellWidth: 60 },
-                        5: { cellWidth: 85 },
-                        6: { cellWidth: 60 }
+                        1: { cellWidth: 160 },
+                        2: { cellWidth: 140 },
+                        3: { cellWidth: 140 },
+                        4: { cellWidth: 90 }
                     },
                     theme: 'grid',
                     didDrawPage: () => {
