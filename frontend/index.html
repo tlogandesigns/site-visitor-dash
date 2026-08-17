@@ -356,12 +356,6 @@
                     <button type="button" class="btn btn-primary" id="sortByAdded" onclick="setSortMode('added')">Last Added</button>
                     <button type="button" class="btn btn-outline-primary" id="sortByNote" onclick="setSortMode('note')">Last Note</button>
                 </div>
-                <select id="protectionFilter" class="form-select form-select-sm w-auto flex-shrink-0">
-                    <option value="">All Protection</option>
-                    <option value="protected">Protected</option>
-                    <option value="expired">Expired</option>
-                    <option value="none">N/A (Not Represented)</option>
-                </select>
                 <input type="search" id="visitorSearch" class="form-control form-control-sm w-auto" placeholder="Search by name, phone, email…" style="min-width:220px;">
             </div>
             <div class="card-body">
@@ -383,7 +377,14 @@
                                 <th>Site</th>
                                 <th>Agent</th>
                                 <th>Represented</th>
-                                <th>Protection</th>
+                                <th>
+                                    <select id="protectionFilter" class="form-select form-select-sm" style="font-weight: normal;">
+                                        <option value="">All Protection</option>
+                                        <option value="protected">Protected</option>
+                                        <option value="expired">Expired</option>
+                                        <option value="none">N/A (Not Represented)</option>
+                                    </select>
+                                </th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
