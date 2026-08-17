@@ -167,7 +167,7 @@
                             <li><span class="step-number">1</span><span>Click <strong>Add New Visitor</strong> above the visitors table.</span></li>
                             <li><span class="step-number">2</span><span>Fill in the visitor's <strong>name</strong> (or check <em>Name unknown</em> if they didn't share it), plus email and cell phone if available.</span></li>
                             <li><span class="step-number">3</span><span>Answer the qualifying questions: first visit, interested product/floor plan, timeline, price range, area they're looking in, occupation, and how they heard about the community.</span></li>
-                            <li><span class="step-number">4</span><span>Set <strong>Represented?</strong> to Yes if the visitor is working with another agent, and enter the co-broker's name — this is required for compliance.</span></li>
+                            <li><span class="step-number">4</span><span>Set <strong>Represented?</strong> to Yes if the visitor is working with another agent, and enter the co-broker's name and email — this is required for compliance.</span></li>
                             <li><span class="step-number">5</span><span>Choose the <strong>Site</strong> (required) and confirm the <strong>Capturing Agent</strong>.</span></li>
                             <li><span class="step-number">6</span><span>Add any relevant notes, then click <strong>Save</strong>. The lead is created and automatically synced to CINC.</span></li>
                         </ol>
@@ -178,11 +178,32 @@
                 </div>
             </div>
 
+            <!-- 60-Day Protection -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secProtection">
+                        <i class="bi bi-shield-check me-2"></i> 60-Day Represented Buyer Protection
+                    </button>
+                </h2>
+                <div id="secProtection" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body">
+                        <p>A represented buyer is protected from being claimed by another agent for <strong>60 days</strong> from their visit date. Every represented visitor shows a status badge in the visitor table and on their detail page:</p>
+                        <ul>
+                            <li><span class="badge bg-info text-dark">Protected</span> — fewer than 60 days have passed.</li>
+                            <li><span class="badge bg-warning text-dark">Expiring</span> — exactly 60 days old today. This is your last day of protection.</li>
+                            <li><span class="badge bg-secondary">Expired</span> — more than 60 days have passed.</li>
+                        </ul>
+                        <p>Use the <strong>Protection</strong> dropdown in the visitor table's column header to filter the list down to just Protected, just Expiring/Expired, or leads with no representation.</p>
+                        <p class="mb-0">If a buyer's representation is renewed, open their <strong>Visitor Details</strong> and click <strong>Renew Registration</strong> to reset the 60-day clock back to today. This is available to the lead's creator and to admins.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Viewing, Searching, Sorting -->
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secSearch">
-                        <i class="bi bi-search me-2"></i> Searching & Sorting Visitors
+                        <i class="bi bi-search me-2"></i> Searching, Sorting & Paging Visitors
                     </button>
                 </h2>
                 <div id="secSearch" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
@@ -190,6 +211,7 @@
                         <ul>
                             <li>Use the <strong>search box</strong> above the table to find a visitor by name, phone, or email.</li>
                             <li>Toggle between <strong>Last Added</strong> and <strong>Last Note</strong> to sort the table by when a lead was created versus when it was last followed up on.</li>
+                            <li>The table shows 50 visitors per page — use <strong>Previous</strong> / <strong>Next</strong> below the table to page through the rest.</li>
                             <li>Click a row (or the actions button) to open full <strong>Visitor Details</strong>, including CINC sync status and full note history.</li>
                         </ul>
                         <p class="mb-0">Click <strong>Refresh</strong> at any time to pull the latest data.</p>
@@ -235,7 +257,7 @@
                 </h2>
                 <div id="secExport" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body mb-0">
-                        <p class="mb-0">Click <strong>Export</strong> in the top navigation bar to download your currently visible visitors as a CSV file — useful for reporting or spreadsheet review.</p>
+                        <p class="mb-0">Click <strong>Export</strong> in the top navigation bar to download your currently visible visitors as a CSV file — useful for reporting or spreadsheet review. To protect buyer privacy, exported files do not include phone numbers or email addresses.</p>
                     </div>
                 </div>
             </div>
@@ -249,7 +271,7 @@
                 </h2>
                 <div id="secAnalytics" class="accordion-collapse collapse" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body mb-0">
-                        <p class="mb-0">The <strong>Analytics</strong> tab shows charts and trends for the sites you have access to, and lets you download a PDF report for a selected date range and site.</p>
+                        <p class="mb-0">The <strong>Analytics</strong> tab shows charts and trends for the sites you have access to, and lets you download a PDF report for a selected date range and site. Like the CSV export, the PDF report leaves out phone numbers and email addresses.</p>
                     </div>
                 </div>
             </div>
