@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS visitors (
     -- Representation
     represented BOOLEAN DEFAULT 0,
     cobroker_name TEXT,  -- Only if represented
+    cobroker_email TEXT,  -- Only if represented; collected for later use, not shown in the visitor log
 
     -- Location
     is_local BOOLEAN DEFAULT 1,

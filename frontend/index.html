@@ -720,6 +720,12 @@
                                 <input type="text" class="form-control" id="cobrokerName">
                             </div>
 
+                            <!-- Co-broker Email (conditional) -->
+                            <div class="col-md-6 mb-3" id="cobrokerEmailDiv" style="display: none;">
+                                <label class="form-label">Co-broker's Email</label>
+                                <input type="email" class="form-control" id="cobrokerEmail">
+                            </div>
+
                             <!-- Location -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Local?</label>
@@ -1191,6 +1197,10 @@
                             <div class="col-md-6 mb-3" id="evCobrokerDiv">
                                 <label class="form-label">Co-broker Name</label>
                                 <input type="text" class="form-control" id="evCobrokerName">
+                            </div>
+                            <div class="col-md-6 mb-3" id="evCobrokerEmailDiv">
+                                <label class="form-label">Co-broker Email</label>
+                                <input type="email" class="form-control" id="evCobrokerEmail">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Local?</label>
@@ -1739,6 +1749,7 @@
             function toggleRepresented() {
                 const isRepresented = document.getElementById('repYes').checked;
                 document.getElementById('cobrokerDiv').style.display = isRepresented ? 'block' : 'none';
+                document.getElementById('cobrokerEmailDiv').style.display = isRepresented ? 'block' : 'none';
 
                 // Update email/phone required indicators
                 const emailRequired = document.getElementById('emailRequired');
@@ -2236,6 +2247,7 @@
 
                 // Representation
                 cobroker_name: document.getElementById('cobrokerName').value || null,
+                cobroker_email: document.getElementById('cobrokerEmail').value.trim() || null,
 
                 // Location
                 is_local: isLocal,
@@ -2610,7 +2622,9 @@
             document.getElementById('evRepYes').checked = visitor.represented == true;
             document.getElementById('evRepNo').checked = visitor.represented != true;
             document.getElementById('evCobrokerName').value = visitor.cobroker_name || '';
+            document.getElementById('evCobrokerEmail').value = visitor.cobroker_email || '';
             document.getElementById('evCobrokerDiv').style.display = visitor.represented ? 'block' : 'none';
+            document.getElementById('evCobrokerEmailDiv').style.display = visitor.represented ? 'block' : 'none';
             document.getElementById('evLocalYes').checked = visitor.is_local != false;
             document.getElementById('evLocalNo').checked = visitor.is_local == false;
             document.getElementById('evStateDiv').style.display = visitor.is_local == false ? 'block' : 'none';
@@ -2664,7 +2678,9 @@
             // Wire up conditional visibility
             document.querySelectorAll('input[name="evRepresented"]').forEach(r => {
                 r.addEventListener('change', () => {
-                    document.getElementById('evCobrokerDiv').style.display = r.value === 'true' && r.checked ? 'block' : (document.getElementById('evRepYes').checked ? 'block' : 'none');
+                    const display = document.getElementById('evRepYes').checked ? 'block' : 'none';
+                    document.getElementById('evCobrokerDiv').style.display = display;
+                    document.getElementById('evCobrokerEmailDiv').style.display = display;
                 });
             });
             document.querySelectorAll('input[name="evIsLocal"]').forEach(r => {
@@ -2705,6 +2721,7 @@
                 first_visit: document.getElementById('evFirstVisitYes').checked,
                 represented: document.getElementById('evRepYes').checked,
                 cobroker_name: document.getElementById('evCobrokerName').value.trim() || null,
+                cobroker_email: document.getElementById('evCobrokerEmail').value.trim() || null,
                 is_local: document.getElementById('evLocalYes').checked,
                 buyer_state: document.getElementById('evBuyerState').value || null,
                 purchase_timeline: document.getElementById('evPurchaseTimeline').value || null,

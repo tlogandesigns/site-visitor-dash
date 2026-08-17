@@ -286,6 +286,7 @@ class VisitorCreate(BaseModel):
 
     # Representation details
     cobroker_name: Optional[str] = Field(None, max_length=255)
+    cobroker_email: Optional[EmailStr] = None
 
     # Location
     is_local: Optional[bool] = True
@@ -387,6 +388,7 @@ class VisitorUpdate(BaseModel):
     first_visit: Optional[bool] = None
     represented: Optional[bool] = None
     cobroker_name: Optional[str] = Field(None, max_length=255)
+    cobroker_email: Optional[EmailStr] = None
     is_local: Optional[bool] = None
     buyer_state: Optional[str] = Field(None, max_length=50)
     occupation: Optional[Occupation] = None
@@ -1129,17 +1131,17 @@ def create_visitor(visitor: VisitorCreate, current_user: UserInDB = Depends(get_
         cursor.execute("""
             INSERT INTO visitors (
                 buyer_name, secondary_visitor, buyer_phone, buyer_email, first_visit,
-                interested_in, purchase_timeline, represented, cobroker_name,
+                interested_in, purchase_timeline, represented, cobroker_name, cobroker_email,
                 is_local, buyer_state, occupation, occupation_other,
                 discovery_method, builders_requested, offer_on_table,
                 finalized_contracts, notes, price_range, location_looking,
                 location_current, agent_name, capturing_agent_id, created_by_user_id,
                 created_by_username, site
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             visitor.buyer_name, visitor.secondary_visitor, visitor.buyer_phone, buyer_email,
             visitor.first_visit, interested_in_str, timeline_str,
-            visitor.represented, visitor.cobroker_name, visitor.is_local,
+            visitor.represented, visitor.cobroker_name, visitor.cobroker_email, visitor.is_local,
             visitor.buyer_state, occupation_str, visitor.occupation_other,
             discovery_str, builders_requested_str, visitor.offer_on_table,
             visitor.finalized_contracts, visitor.notes, price_range_str,
@@ -1421,6 +1423,8 @@ def update_visitor(visitor_id: int, update: VisitorUpdate, current_user: UserInD
         # Build change summary by comparing old vs new values
         changes = []
         for field, new_val in data.items():
+            if field == "cobroker_email":
+                continue  # collected for internal use only, not shown in the visitor log/audit trail
             old_val = visitor[field] if field in visitor.keys() else None
             label = field_labels.get(field, field)
             if field in bool_fields:
