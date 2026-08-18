@@ -380,7 +380,7 @@
                                 <th>
                                     <select id="protectionFilter" class="form-select form-select-sm" style="font-weight: normal;">
                                         <option value="">All Protection</option>
-                                        <option value="protected">Protected</option>
+                                        <option value="protected">Registered</option>
                                         <option value="expired">Expired</option>
                                         <option value="none">N/A (Not Represented)</option>
                                     </select>
@@ -1394,7 +1394,7 @@
             }
             return daysElapsed > 60
                 ? { label: 'Expired', className: 'bg-secondary' }
-                : { label: 'Protected', className: 'bg-info text-dark' };
+                : { label: 'Registered', className: 'bg-info text-dark' };
         }
         function protectionBadgeHTML(visitor) {
             const status = getProtectionStatus(visitor);

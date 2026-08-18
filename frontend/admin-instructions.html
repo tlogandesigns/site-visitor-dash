@@ -229,7 +229,7 @@
                     </h2>
                     <div id="secProtectionAdmin" class="accordion-collapse collapse" data-bs-parent="#adminAccordion">
                         <div class="accordion-body">
-                            <p>Represented visitors are intentionally <strong>skipped from CINC sync</strong> at creation and always show as <code>Pending</code> — this is expected, not a sync failure. They carry a <strong>Protected / Expiring / Expired</strong> badge instead, based on 60 days from the visit date (or from the date registration was last renewed).</p>
+                            <p>Represented visitors are intentionally <strong>skipped from CINC sync</strong> at creation and always show as <code>Pending</code> — this is expected, not a sync failure. They carry a <strong>Registered / Expiring / Expired</strong> badge instead, based on 60 days from the visit date (or from the date registration was last renewed).</p>
                             <p>Every day at 8am, a background job checks for represented visitors that turn exactly 60 days old and emails the user who originally logged them, prompting a compliance follow-up. This requires the <code>ZAPIER_REPRESENTED_FOLLOWUP_WEBHOOK_URL</code> environment variable to be set — if it's unset, the check runs but no email is sent.</p>
                             <p class="mb-0">To test the follow-up without waiting for the daily schedule, an admin can trigger it manually: <code>POST /admin/check-represented-followups</code>. Clicking <strong>Renew Registration</strong> on a visitor's detail page resets their 60-day clock and re-arms this follow-up for the new date; it's available to the lead's creator and to admins.</p>
                         </div>
